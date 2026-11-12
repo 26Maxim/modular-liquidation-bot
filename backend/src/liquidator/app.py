@@ -87,13 +87,17 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
     # 7. Event Sink & Metrics
     event_hub = EventHub()
 
-    # 8. Oracle Watcher
+    # 8. EVM Chain Adapter
+    evm_adapter = EVMChainAdapter(rpc_url=settings.BASE_RPC_URL)
+
+    # 9. Oracle Watcher (polling live Base Chainlink feeds)
     oracle_watcher = OracleUpdateWatcher(
         chain=ChainType.EVM,
         max_staleness_seconds=settings.MAX_ORACLE_STALENESS_SECONDS,
+        w3=evm_adapter.w3,
     )
 
-    # 9. Evaluator & Executor
+    # 10. Evaluator & Executor
     evaluator = OpportunityEvaluator(repository=repository, risk_params=risk_params)
     executor = LiquidationExecutor(
         repository=repository,
@@ -102,8 +106,7 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
         event_sink=event_hub,
     )
 
-    # 10. Execution Slice Adapters
-    evm_adapter = EVMChainAdapter(rpc_url=settings.BASE_RPC_URL)
+    # 11. Execution Slice Adapters
     moonwell_adapter = MoonwellAdapter(
         comptroller_address=settings.MOONWELL_COMPTROLLER_ADDRESS,
         w3=evm_adapter.w3,
@@ -136,10 +139,13 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
         # Startup: initialize database tables
         await db.init_models()
         scanner_task = asyncio.create_task(scanner.start())
+        oracle_task = asyncio.create_task(oracle_watcher.start_polling_loop(poll_interval=10.0))
         yield
         # Shutdown: close DB & cancel background task
         scanner.stop()
         scanner_task.cancel()
+        oracle_watcher.stop()
+        oracle_task.cancel()
         await db.close()
 
     app = FastAPI(

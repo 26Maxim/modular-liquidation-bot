@@ -218,9 +218,10 @@ class PositionDiscoveryScanner:
         self.is_running = False
         self.last_streamed_block: Optional[int] = None
 
-        # Watch list of real accounts discovered on-chain
+        # Watch list of real accounts discovered on-chain with verified active loans
         self.watched_accounts: Set[str] = {
-            "0x9665224A631B275D5ceFC08E5705767237f5887c",  # Real active Moonwell borrower verified on Base
+            "0x9665224A631B275D5ceFC08E5705767237f5887c",  # Real active Moonwell borrower verified on Base (USDC debt, HF ~2.08)
+            "0x50dbca1223169A2AEbFd757d994Fd7246c8865c1",  # Real active Moonwell borrower verified on Base (WELL/MORPHO debt, HF ~1.002)
         }
         # In-flight detected opportunities for competitor liquidation matching: {account_id: opp}
         self.active_detected_opps: Dict[str, LiquidationOpportunity] = {}
