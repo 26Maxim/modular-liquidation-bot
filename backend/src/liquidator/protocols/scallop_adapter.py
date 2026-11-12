@@ -22,7 +22,7 @@ class ScallopAdapter(LendingProtocolAdapter):
     Status: READ_ONLY.
     """
 
-    def __init__(self, package_id: str = "0xefe8b36d5b2e43728cc323298633b83028110d9d61c4c04e53670617f6e6330"):
+    def __init__(self, package_id: str = "0xefe8b36d5b2e43728cc323298626b83177803521d195cfb11e15b910e892fddf"):
         self.package_id = package_id
         self._status = AdapterStatus.READ_ONLY
 

@@ -56,6 +56,7 @@ class AppSettings(BaseSettings):
     BASE_RPC_URL: str = Field(default="https://base-rpc.publicnode.com", description="Base EVM RPC")
     SOLANA_RPC_URL: str = Field(default="https://api.mainnet-beta.solana.com", description="Solana RPC")
     SUI_RPC_URL: str = Field(default="https://fullnode.mainnet.sui.io:443", description="Sui RPC")
+    SUI_GRAPHQL_URL: str = Field(default="https://graphql.mainnet.sui.io/graphql", description="Sui GraphQL Endpoint")
     APTOS_RPC_URL: str = Field(default="https://fullnode.mainnet.aptoslabs.com/v1", description="Aptos RPC")
 
     # Contract Addresses (Moonwell on Base)

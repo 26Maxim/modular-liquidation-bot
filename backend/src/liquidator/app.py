@@ -18,7 +18,9 @@ from liquidator.chains.solana_adapter import SolanaChainAdapter
 from liquidator.chains.sui_adapter import SuiChainAdapter
 from liquidator.core.config import AppSettings
 from liquidator.core.models import ChainType, RiskParameters
+from liquidator.discovery.kamino_daemon import KaminoDiscoveryDaemon
 from liquidator.discovery.oracle_watcher import OracleUpdateWatcher
+from liquidator.discovery.scallop_daemon import ScallopDiscoveryDaemon
 from liquidator.discovery.scanner import PositionDiscoveryScanner
 from liquidator.eligibility.evaluator import OpportunityEvaluator
 from liquidator.execution.executor import LiquidationExecutor
@@ -134,18 +136,38 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
         flash_liquidator_address=settings.FLASH_LIQUIDATOR_ADDRESS,
     )
 
+    # 12. Solana & Sui Live Discovery Daemons
+    kamino_daemon = KaminoDiscoveryDaemon(
+        repository=repository,
+        rpc_url=settings.SOLANA_RPC_URL,
+        poll_interval=15.0,
+        event_sink=event_hub,
+    )
+    scallop_daemon = ScallopDiscoveryDaemon(
+        repository=repository,
+        graphql_endpoint=settings.SUI_GRAPHQL_URL,
+        poll_interval=20.0,
+        event_sink=event_hub,
+    )
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         # Startup: initialize database tables
         await db.init_models()
         scanner_task = asyncio.create_task(scanner.start())
         oracle_task = asyncio.create_task(oracle_watcher.start_polling_loop(poll_interval=10.0))
+        kamino_task = asyncio.create_task(kamino_daemon.start())
+        scallop_task = asyncio.create_task(scallop_daemon.start())
         yield
         # Shutdown: close DB & cancel background task
         scanner.stop()
         scanner_task.cancel()
         oracle_watcher.stop()
         oracle_task.cancel()
+        kamino_daemon.stop()
+        kamino_task.cancel()
+        scallop_daemon.stop()
+        scallop_task.cancel()
         await db.close()
 
     app = FastAPI(
@@ -217,5 +239,7 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
     app.state.protocol_adapters = protocol_adapters
     app.state.funding_adapter = funding_adapter
     app.state.route_adapter = route_adapter
+    app.state.kamino_daemon = kamino_daemon
+    app.state.scallop_daemon = scallop_daemon
 
     return app

@@ -105,7 +105,10 @@ LIQUIDATE_BORROW_TOPIC = "0x298637f684da70674f26509b10f07ec2fbc77a335ab1e7d6215a
 
 # Seamless Protocol (Aave v3 Architecture on Base)
 SEAMLESS_POOL_ADDRESS = "0x8F44Fd754285aa6A2b8B9B97739B79746e0475a7"
-SEAMLESS_BORROW_TOPIC = "0xc6a898309e823ee50bac64e45ca8adba6690e99e7841c45d754e2a38e9019d9b"
+SEAMLESS_BORROW_TOPICS = [
+    "0xb3d084820fb1a9decffb176436bd02558d15fac9b0ddfed8c465bc7359d7dce0",  # uint8 interestRateMode
+    "0xc6a898309e823ee50bac64e45ca8adba6690e99e7841c45d754e2a38e9019d9b",  # uint256 interestRateMode
+]
 
 # Real active Moonwell tokens on Base
 KNOWN_TOKENS: Dict[str, Token] = {
@@ -325,21 +328,22 @@ class PositionDiscoveryScanner:
 
 
         # 2. Query Seamless (Aave v3) Pool for live Borrow events on Base
-        try:
-            seamless_logs = await self.w3.eth.get_logs({
-                "address": self.w3.to_checksum_address(SEAMLESS_POOL_ADDRESS),
-                "topics": [SEAMLESS_BORROW_TOPIC],
-                "fromBlock": from_b,
-                "toBlock": to_b,
-            })
-            for log in seamless_logs:
-                data = log["data"].hex()
-                borrower = self.w3.to_checksum_address("0x" + data[24:64])
-                if borrower not in self.watched_accounts:
-                    self.watched_accounts.add(borrower)
-                    logger.info(f"Stream discovery: New Seamless borrower {borrower} at block {block_number}")
-        except Exception:
-            pass
+        for seamless_topic in SEAMLESS_BORROW_TOPICS:
+            try:
+                seamless_logs = await self.w3.eth.get_logs({
+                    "address": self.w3.to_checksum_address(SEAMLESS_POOL_ADDRESS),
+                    "topics": [seamless_topic],
+                    "fromBlock": from_b,
+                    "toBlock": to_b,
+                })
+                for log in seamless_logs:
+                    data = log["data"].hex()
+                    borrower = self.w3.to_checksum_address("0x" + data[24:64])
+                    if borrower not in self.watched_accounts:
+                        self.watched_accounts.add(borrower)
+                        logger.info(f"Stream discovery: New Seamless borrower {borrower} at block {block_number}")
+            except Exception:
+                pass
 
         # 3. Inspect watched accounts on-chain at current block (Fail closed)
         ranked_accounts = []
@@ -492,12 +496,92 @@ class PositionDiscoveryScanner:
             # Fail closed: no opportunity recorded if QuoterV2 or evaluation fails
             logger.warning(f"Fail closed: Evaluation aborted for {pos.account_id} at block {detection_block}: {e}")
 
+    async def run_periodic_deep_scan(self, markets: List[str], lookback_blocks: int = 50000) -> int:
+        """
+        Scans all active Moonwell markets and Seamless pool across a wider historical window
+        to discover open debt positions that occurred prior to streaming startup.
+        """
+        logger.info(f"Starting periodic deep scan for open debt positions across {len(markets)} markets (lookback: {lookback_blocks} blocks)")
+        current_head = await self.w3.eth.block_number
+        from_block = max(1, current_head - lookback_blocks)
+        discovered_count = 0
+        comptroller = self.w3.eth.contract(
+            address=self.w3.to_checksum_address(self.comptroller_address),
+            abi=COMPTROLLER_ABI,
+        )
+
+        # 1. Scan active Moonwell markets for past borrow events
+        for market in markets:
+            try:
+                logs = await self.w3.eth.get_logs({
+                    "address": market,
+                    "topics": [BORROW_TOPIC],
+                    "fromBlock": from_block,
+                    "toBlock": current_head,
+                })
+                for log in logs:
+                    data = log["data"].hex()
+                    borrower = self.w3.to_checksum_address("0x" + data[24:64])
+                    if borrower not in self.watched_accounts:
+                        res = await comptroller.functions.getAccountLiquidity(borrower).call()
+                        err = res[0]
+                        if err == 0:
+                            assets = await comptroller.functions.getAssetsIn(borrower).call()
+                            total_debt = 0
+                            for a in assets:
+                                c = self.w3.eth.contract(address=a, abi=CTOKEN_ABI)
+                                b_bal = await c.functions.borrowBalanceStored(borrower).call()
+                                total_debt += b_bal
+
+                            if total_debt > 0:
+                                self.watched_accounts.add(borrower)
+                                discovered_count += 1
+                                logger.info(f"Deep scan discovered active Moonwell borrower {borrower} with debt")
+            except Exception as e:
+                logger.debug(f"Deep scan chunk error on market {market}: {e}")
+
+        # 2. Scan Seamless Pool
+        for topic in SEAMLESS_BORROW_TOPICS:
+            try:
+                seamless_logs = await self.w3.eth.get_logs({
+                    "address": self.w3.to_checksum_address(SEAMLESS_POOL_ADDRESS),
+                    "topics": [topic],
+                    "fromBlock": from_block,
+                    "toBlock": current_head,
+                })
+                for log in seamless_logs:
+                    data = log["data"].hex()
+                    borrower = self.w3.to_checksum_address("0x" + data[24:64])
+                    if borrower not in self.watched_accounts:
+                        self.watched_accounts.add(borrower)
+                        discovered_count += 1
+                        logger.info(f"Deep scan discovered active Seamless borrower {borrower}")
+            except Exception as e:
+                logger.debug(f"Deep scan error on Seamless: {e}")
+
+        logger.info(f"Periodic deep scan completed. Discovered {discovered_count} new open debt positions. Total watched: {len(self.watched_accounts)}")
+        return discovered_count
+
+    async def _periodic_deep_scan_loop(self, markets: List[str], scan_interval: float = 300.0) -> None:
+        """Periodic background task running every scan_interval seconds."""
+        await asyncio.sleep(5.0)  # Grace period after boot
+        while self.is_running:
+            try:
+                await self.run_periodic_deep_scan(markets)
+                await asyncio.sleep(scan_interval)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.warning(f"Error in periodic deep scan loop: {e}")
+                await asyncio.sleep(scan_interval)
+
     async def start(self) -> None:
         """Start the continuous event and block streaming loop."""
         self.is_running = True
         markets = await self._get_active_markets()
 
         logger.info(f"Starting real-time streaming scanner on Base. Markets tracked: {len(markets)}")
+        self._deep_scan_task = asyncio.create_task(self._periodic_deep_scan_loop(markets))
 
         while self.is_running:
             try:
@@ -516,3 +600,5 @@ class PositionDiscoveryScanner:
 
     def stop(self) -> None:
         self.is_running = False
+        if hasattr(self, "_deep_scan_task") and self._deep_scan_task:
+            self._deep_scan_task.cancel()
