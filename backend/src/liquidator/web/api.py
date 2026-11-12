@@ -276,7 +276,10 @@ def create_api_router(
                 "debt_asset": o.debt_asset_address,
                 "collateral_asset": o.collateral_asset_address,
                 "repay_amount_raw": o.repay_amount_raw,
+                "expected_collateral_raw": o.expected_collateral_raw,
                 "expected_proceeds_raw": o.expected_proceeds_raw,
+                "funding_source": o.funding_source,
+                "disposal_venue": o.disposal_venue,
                 "estimated_gas_usd": str(o.estimated_gas_usd),
                 "expected_net_profit_usd": str(o.expected_net_profit_usd),
                 "invariant_passed": o.invariant_passed,
@@ -317,12 +320,16 @@ def create_api_router(
                 "mode": a.mode,
                 "status": a.status,
                 "tx_hash": a.tx_hash,
+                "block_number": a.block_number,
                 "repay_token": a.repay_token_symbol,
                 "repay_amount_raw": a.repay_amount_raw,
+                "proceeds_raw": a.proceeds_raw,
+                "gas_units_used": a.gas_units_used,
                 "gas_cost_usd": str(a.gas_cost_usd),
                 "net_pnl_usd": str(a.net_pnl_usd),
                 "failure_reason": a.failure_reason,
                 "created_at": a.created_at,
+                "finalized_at": a.finalized_at,
             }
             for a in attempts
         ]

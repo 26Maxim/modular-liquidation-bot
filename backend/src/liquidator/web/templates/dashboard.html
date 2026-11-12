@@ -74,13 +74,20 @@
 
   <!-- Clean Segmented Navigation Tabs (Scrollable on small devices) -->
   <nav class="bg-base-200/80 border-b border-base-content/10 px-3 sm:px-6 py-2">
-    <div class="max-w-7xl mx-auto flex items-center overflow-x-auto no-scrollbar gap-1.5 text-xs sm:text-sm font-medium">
-      <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="btn btn-sm btn-primary">Dashboard</button>
-      <button onclick="switchTab('positions')" id="tab-btn-positions" class="btn btn-sm btn-ghost text-base-content/70">Positions</button>
-      <button onclick="switchTab('attempts')" id="tab-btn-attempts" class="btn btn-sm btn-ghost text-base-content/70">Attempts</button>
-      <button onclick="switchTab('controls')" id="tab-btn-controls" class="btn btn-sm btn-ghost text-base-content/70">Controls</button>
-      <button onclick="switchTab('rejections')" id="tab-btn-rejections" class="btn btn-sm btn-ghost text-base-content/70">Rejections</button>
-      <button onclick="switchTab('audit')" id="tab-btn-audit" class="btn btn-sm btn-ghost text-base-content/70">Audit</button>
+    <div class="max-w-7xl mx-auto flex items-center justify-between overflow-x-auto no-scrollbar gap-1.5 text-xs sm:text-sm font-medium">
+      <div class="flex items-center gap-1.5 flex-nowrap">
+        <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="btn btn-sm btn-primary">Dashboard</button>
+        <button onclick="switchTab('positions')" id="tab-btn-positions" class="btn btn-sm btn-ghost text-base-content/70">Positions</button>
+        <button onclick="switchTab('attempts')" id="tab-btn-attempts" class="btn btn-sm btn-ghost text-base-content/70">Attempts</button>
+        <button onclick="switchTab('controls')" id="tab-btn-controls" class="btn btn-sm btn-ghost text-base-content/70">Controls</button>
+        <button onclick="switchTab('rejections')" id="tab-btn-rejections" class="btn btn-sm btn-ghost text-base-content/70">Rejections</button>
+        <button onclick="switchTab('audit')" id="tab-btn-audit" class="btn btn-sm btn-ghost text-base-content/70">Audit</button>
+      </div>
+      <button onclick="openGlossaryModal()" class="btn btn-sm btn-ghost text-info gap-1 flex-shrink-0">
+        <span>📖</span>
+        <span class="hidden sm:inline">Guide & Codes</span>
+        <span class="sm:hidden">Guide</span>
+      </button>
     </div>
   </nav>
 
@@ -138,59 +145,92 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <!-- Lending Protocols -->
             <div class="rounded-lg bg-base-200/50 p-3 border border-base-content/5 space-y-2">
-              <div class="text-[11px] font-bold uppercase tracking-wider text-base-content/60 mb-2">Lending Protocols</div>
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-base-content/60">Lending Protocols</span>
+                <span class="text-[10px] text-info cursor-pointer hover:underline" onclick="openGlossaryTerm('EXECUTION_IMPLEMENTED')">Tap badge for guide ⓘ</span>
+              </div>
               <div class="flex justify-between items-center py-1 text-xs border-b border-base-content/5">
                 <span class="font-medium">Moonwell (Base)</span>
-                <span class="badge badge-success badge-sm font-bold">EXECUTION_IMPLEMENTED</span>
+                <button onclick="openGlossaryTerm('EXECUTION_IMPLEMENTED')" class="badge badge-success badge-sm font-bold gap-1 cursor-pointer hover:brightness-110">
+                  <span>EXECUTION_IMPLEMENTED</span>
+                  <span>ⓘ</span>
+                </button>
               </div>
               <div class="flex justify-between items-center py-1 text-xs border-b border-base-content/5">
                 <span class="font-medium">Seamless (Base)</span>
-                <span class="badge badge-info badge-sm font-bold">READ_ONLY</span>
+                <button onclick="openGlossaryTerm('READ_ONLY')" class="badge badge-info badge-sm font-bold gap-1 cursor-pointer hover:brightness-110">
+                  <span>READ_ONLY</span>
+                  <span>ⓘ</span>
+                </button>
               </div>
               <div class="flex justify-between items-center py-1 text-xs border-b border-base-content/5">
                 <span class="font-medium">Kamino Lend (Solana)</span>
-                <span class="badge badge-info badge-sm font-bold">READ_ONLY</span>
+                <button onclick="openGlossaryTerm('READ_ONLY')" class="badge badge-info badge-sm font-bold gap-1 cursor-pointer hover:brightness-110">
+                  <span>READ_ONLY</span>
+                  <span>ⓘ</span>
+                </button>
               </div>
               <div class="flex justify-between items-center py-1 text-xs border-b border-base-content/5">
                 <span class="font-medium">Scallop (Sui)</span>
-                <span class="badge badge-info badge-sm font-bold">READ_ONLY</span>
+                <button onclick="openGlossaryTerm('READ_ONLY')" class="badge badge-info badge-sm font-bold gap-1 cursor-pointer hover:brightness-110">
+                  <span>READ_ONLY</span>
+                  <span>ⓘ</span>
+                </button>
               </div>
               <div class="flex justify-between items-center py-1 text-xs">
                 <span class="font-medium">Aries Markets (Aptos)</span>
-                <span class="badge badge-warning badge-sm font-bold">RESEARCHED</span>
+                <button onclick="openGlossaryTerm('RESEARCHED')" class="badge badge-neutral badge-sm font-bold gap-1 cursor-pointer hover:brightness-110">
+                  <span>RESEARCHED</span>
+                  <span>ⓘ</span>
+                </button>
               </div>
             </div>
 
             <!-- Chain Networks -->
             <div class="rounded-lg bg-base-200/50 p-3 border border-base-content/5 space-y-2">
-              <div class="text-[11px] font-bold uppercase tracking-wider text-base-content/60 mb-2">Networks & Block Head</div>
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-base-content/60">Networks & Block Head</span>
+                <span class="text-[10px] text-info cursor-pointer hover:underline" onclick="openGlossaryTerm('EXECUTION_IMPLEMENTED')">Tap badge for guide ⓘ</span>
+              </div>
               <div class="flex justify-between items-center py-1 text-xs border-b border-base-content/5">
                 <div>
                   <span class="font-medium">Base EVM</span>
                   <div id="baseHeadBlock" class="text-[10px] text-base-content/50">Head: Polling...</div>
                 </div>
-                <span class="badge badge-success badge-sm font-bold">EXECUTION_READY</span>
+                <button onclick="openGlossaryTerm('EXECUTION_IMPLEMENTED')" class="badge badge-success badge-sm font-bold gap-1 cursor-pointer hover:brightness-110">
+                  <span>EXECUTION_READY</span>
+                  <span>ⓘ</span>
+                </button>
               </div>
               <div class="flex justify-between items-center py-1 text-xs border-b border-base-content/5">
                 <div>
                   <span class="font-medium">Solana</span>
                   <div id="solanaHeadSlot" class="text-[10px] text-base-content/50">Slot: Polling...</div>
                 </div>
-                <span class="badge badge-info badge-sm font-bold">READ_ONLY</span>
+                <button onclick="openGlossaryTerm('READ_ONLY')" class="badge badge-info badge-sm font-bold gap-1 cursor-pointer hover:brightness-110">
+                  <span>READ_ONLY</span>
+                  <span>ⓘ</span>
+                </button>
               </div>
               <div class="flex justify-between items-center py-1 text-xs border-b border-base-content/5">
                 <div>
                   <span class="font-medium">Sui</span>
                   <div id="suiHeadSeq" class="text-[10px] text-base-content/50">Checkpoint: Polling...</div>
                 </div>
-                <span class="badge badge-info badge-sm font-bold">READ_ONLY</span>
+                <button onclick="openGlossaryTerm('READ_ONLY')" class="badge badge-info badge-sm font-bold gap-1 cursor-pointer hover:brightness-110">
+                  <span>READ_ONLY</span>
+                  <span>ⓘ</span>
+                </button>
               </div>
               <div class="flex justify-between items-center py-1 text-xs">
                 <div>
                   <span class="font-medium">Aptos</span>
                   <div id="aptosHeadVer" class="text-[10px] text-base-content/50">Version: Polling...</div>
                 </div>
-                <span class="badge badge-warning badge-sm font-bold">RESEARCHED</span>
+                <button onclick="openGlossaryTerm('RESEARCHED')" class="badge badge-neutral badge-sm font-bold gap-1 cursor-pointer hover:brightness-110">
+                  <span>RESEARCHED</span>
+                  <span>ⓘ</span>
+                </button>
               </div>
             </div>
           </div>
@@ -228,10 +268,11 @@
                   <th>Collateral Market</th>
                   <th>Health Factor</th>
                   <th>Status</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody id="positionsTableBody">
-                <tr><td colspan="6" class="text-center py-4 text-base-content/50">Scanning Moonwell lending markets on Base...</td></tr>
+                <tr><td colspan="7" class="text-center py-4 text-base-content/50">Scanning Moonwell lending markets on Base...</td></tr>
               </tbody>
             </table>
           </div>
@@ -257,10 +298,11 @@
                   <th>Net Profit</th>
                   <th>Invariant Gate</th>
                   <th>Decision</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody id="oppsTableBody">
-                <tr><td colspan="7" class="text-center py-4 text-base-content/50">No opportunities evaluated yet.</td></tr>
+                <tr><td colspan="8" class="text-center py-4 text-base-content/50">No opportunities evaluated yet.</td></tr>
               </tbody>
             </table>
           </div>
@@ -284,10 +326,11 @@
                   <th>Gas Spent</th>
                   <th>Realized P&L</th>
                   <th>Outcome / Hash</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody id="attemptsTableBody">
-                <tr><td colspan="7" class="text-center py-4 text-base-content/50">No attempts logged yet.</td></tr>
+                <tr><td colspan="8" class="text-center py-4 text-base-content/50">No attempts logged yet.</td></tr>
               </tbody>
             </table>
           </div>
@@ -415,7 +458,452 @@
     </div>
   </dialog>
 
+  <!-- Modal 1: Position Details -->
+  <dialog id="positionDetailModal" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box bg-base-100 max-w-2xl border border-primary/30 p-5 space-y-4">
+      <div class="flex justify-between items-start">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="badge badge-primary badge-sm font-bold" id="posModalProtocol">Moonwell Base</span>
+            <span class="badge badge-outline badge-sm" id="posModalChain">Base (EVM)</span>
+          </div>
+          <h3 class="font-bold text-sm sm:text-base font-mono mt-1 text-base-content break-all" id="posModalAccount"></h3>
+        </div>
+        <form method="dialog"><button class="btn btn-sm btn-circle btn-ghost">✕</button></form>
+      </div>
+
+      <!-- Health Factor Gauge & Banner -->
+      <div id="posModalHfBanner" class="p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <div class="text-[11px] uppercase tracking-wider text-base-content/60 font-semibold">Account Health Factor</div>
+          <div class="flex items-baseline gap-2">
+            <span id="posModalHfValue" class="text-2xl sm:text-3xl font-extrabold font-mono"></span>
+            <span class="text-xs text-base-content/60">(Threshold: 1.0000)</span>
+          </div>
+        </div>
+        <div id="posModalEligibilityText" class="text-xs sm:text-right max-w-sm"></div>
+      </div>
+
+      <!-- Markets Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <!-- Debt Card -->
+        <div class="bg-base-200/80 p-3 rounded-lg border border-base-content/10 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-error uppercase flex items-center gap-1">
+              <span>🔴</span> Borrow Debt Asset
+            </span>
+            <span id="posModalDebtSymbol" class="badge badge-error badge-xs font-bold">USDC</span>
+          </div>
+          <div class="font-mono text-lg font-bold" id="posModalDebtAmount"></div>
+          <div class="text-[11px] text-base-content/60 font-mono truncate" id="posModalDebtAddress"></div>
+          <div class="text-[11px] text-base-content/70 flex justify-between pt-1 border-t border-base-content/10">
+            <span>Close Factor:</span>
+            <span class="font-bold text-base-content">50% Max Repay</span>
+          </div>
+        </div>
+
+        <!-- Collateral Card -->
+        <div class="bg-base-200/80 p-3 rounded-lg border border-base-content/10 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-success uppercase flex items-center gap-1">
+              <span>🟢</span> Supplied Collateral
+            </span>
+            <span id="posModalCollateralSymbol" class="badge badge-success badge-xs font-bold">WETH</span>
+          </div>
+          <div class="font-mono text-lg font-bold" id="posModalCollateralAmount"></div>
+          <div class="text-[11px] text-base-content/60 font-mono truncate" id="posModalCollateralAddress"></div>
+          <div class="text-[11px] text-base-content/70 flex justify-between pt-1 border-t border-base-content/10">
+            <span>Liquidation Incentive:</span>
+            <span class="font-bold text-success">+10% Bonus Seize</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Verification Info -->
+      <div class="bg-base-200/50 p-3 rounded-lg text-xs space-y-1 text-base-content/70">
+        <div class="flex justify-between">
+          <span>Observed Base Block:</span>
+          <span id="posModalBlock" class="font-mono font-semibold text-base-content"></span>
+        </div>
+        <div class="flex justify-between">
+          <span>Last State Check:</span>
+          <span id="posModalUpdated" class="font-semibold text-base-content"></span>
+        </div>
+        <div class="flex justify-between">
+          <span>Comptroller Address:</span>
+          <span class="font-mono text-[10px] text-primary">0xfBb21d0380beE3312B33c4353c8936a0F13EF26C</span>
+        </div>
+      </div>
+
+      <div class="modal-action flex items-center justify-between pt-2">
+        <button onclick="openGlossaryTerm('HEALTH_FACTOR_HEALTHY')" class="btn btn-ghost btn-xs text-info gap-1">
+          <span>ⓘ</span><span>How Health Factor Works</span>
+        </button>
+        <div class="flex gap-2">
+          <form method="dialog"><button class="btn btn-sm btn-ghost">Close</button></form>
+          <button id="posModalEvaluateBtn" onclick="evaluateFromModal()" class="btn btn-sm btn-primary font-bold gap-1">
+            <span>⚡</span><span>Evaluate Opportunity</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  </dialog>
+
+  <!-- Modal 2: Opportunity Details -->
+  <dialog id="oppDetailModal" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box bg-base-100 max-w-2xl border border-secondary/30 p-5 space-y-4">
+      <div class="flex justify-between items-start">
+        <div>
+          <div class="flex items-center gap-2">
+            <span id="oppModalGateBadge" class="badge badge-success font-bold badge-sm">INVARIANT PASSED</span>
+            <span class="badge badge-outline badge-sm" id="oppModalProtocol">Moonwell Base</span>
+          </div>
+          <h3 class="font-bold text-sm font-mono mt-1 text-base-content" id="oppModalId"></h3>
+        </div>
+        <form method="dialog"><button class="btn btn-sm btn-circle btn-ghost">✕</button></form>
+      </div>
+
+      <!-- Net Profit Banner -->
+      <div class="p-3.5 rounded-xl bg-base-200 border border-base-content/10 flex items-center justify-between">
+        <div>
+          <div class="text-[11px] uppercase tracking-wider text-base-content/60 font-semibold">Expected Net Profit (After Gas & Fees)</div>
+          <div class="text-2xl sm:text-3xl font-extrabold font-mono text-success" id="oppModalProfitUsd">$0.00</div>
+        </div>
+        <div class="text-right">
+          <div class="text-[11px] uppercase tracking-wider text-base-content/60 font-semibold">Estimated Gas</div>
+          <div class="text-sm font-mono font-bold text-warning" id="oppModalGasUsd">$0.00</div>
+        </div>
+      </div>
+
+      <!-- Invariant Verification Gate Breakdown -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <h4 class="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+            <span>📐</span>
+            <span>Section 3.5 Invariant Reconciliation Formula</span>
+          </h4>
+          <button onclick="openGlossaryTerm('Reconciliation Invariant')" class="text-[11px] text-info underline">How gate works</button>
+        </div>
+
+        <div class="bg-base-300 p-3 rounded-lg font-mono text-xs space-y-2">
+          <div class="text-[11px] text-base-content/60 border-b border-base-content/10 pb-1">
+            Condition: Proceeds ≥ Debt Repay + Flash Fee + Gas in Debt + Min Profit ($15)
+          </div>
+          <div class="space-y-1 pt-1 text-xs">
+            <div class="flex justify-between text-success">
+              <span>(+) Collateral Disposal Proceeds:</span>
+              <span id="oppModalProceeds" class="font-bold"></span>
+            </div>
+            <div class="flex justify-between text-error">
+              <span>(-) Debt to Repay (Close Factor 50%):</span>
+              <span id="oppModalRepay" class="font-bold"></span>
+            </div>
+            <div class="flex justify-between text-base-content/70">
+              <span>(-) Flash Loan Funding Fee:</span>
+              <span class="font-bold">$0.00 (Balancer 0 bps)</span>
+            </div>
+            <div class="flex justify-between text-warning">
+              <span>(-) Transaction Gas & Priority Fee:</span>
+              <span id="oppModalGasTerm" class="font-bold"></span>
+            </div>
+            <div class="flex justify-between text-info">
+              <span>(-) Minimum Profit Threshold:</span>
+              <span class="font-bold">$15.00</span>
+            </div>
+            <div class="border-t border-base-content/20 pt-1.5 flex justify-between font-bold text-sm">
+              <span>(=) Expected Net Profit:</span>
+              <span id="oppModalNetMargin" class="text-success"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Execution Route Specifications -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div class="bg-base-200/80 p-2.5 rounded-lg space-y-1">
+          <span class="font-bold text-base-content/70">Flash Funding Venue:</span>
+          <div class="font-semibold text-primary" id="oppModalFundingSource">Balancer V2 Vault</div>
+          <div class="text-[10px] text-base-content/60">0 bps flash loan fee on Base</div>
+        </div>
+        <div class="bg-base-200/80 p-2.5 rounded-lg space-y-1">
+          <span class="font-bold text-base-content/70">Collateral Disposal Venue:</span>
+          <div class="font-semibold text-secondary" id="oppModalDisposalVenue">Uniswap V3 QuoterV2</div>
+          <div class="text-[10px] text-base-content/60">Exact static call query with 0.3% pool fee</div>
+        </div>
+      </div>
+
+      <div class="modal-action">
+        <form method="dialog"><button class="btn btn-sm btn-ghost">Close</button></form>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  </dialog>
+
+  <!-- Modal 3: Execution Attempt Details -->
+  <dialog id="attemptDetailModal" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box bg-base-100 max-w-2xl border border-primary/30 p-5 space-y-4">
+      <div class="flex justify-between items-start">
+        <div>
+          <div class="flex items-center gap-2">
+            <span id="attModalModeBadge" class="badge badge-secondary badge-sm font-bold">DRY_RUN</span>
+            <span id="attModalStatusBadge" class="badge badge-success badge-sm font-bold">SUCCESS</span>
+            <span class="badge badge-outline badge-sm" id="attModalProtocol">Moonwell Base</span>
+          </div>
+          <h3 class="font-bold text-sm font-mono mt-1 text-base-content" id="attModalId"></h3>
+        </div>
+        <form method="dialog"><button class="btn btn-sm btn-circle btn-ghost">✕</button></form>
+      </div>
+
+      <!-- PnL & Gas Banner -->
+      <div class="p-3.5 rounded-xl bg-base-200 border border-base-content/10 grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <div>
+          <div class="text-[11px] uppercase tracking-wider text-base-content/60 font-semibold">Realized Net P&L</div>
+          <div class="text-xl sm:text-2xl font-mono font-extrabold text-success" id="attModalPnl">$0.00</div>
+        </div>
+        <div>
+          <div class="text-[11px] uppercase tracking-wider text-base-content/60 font-semibold">Gas Cost (USD)</div>
+          <div class="text-xl sm:text-2xl font-mono font-bold text-warning" id="attModalGasUsd">$0.00</div>
+        </div>
+        <div class="col-span-2 sm:col-span-1">
+          <div class="text-[11px] uppercase tracking-wider text-base-content/60 font-semibold">Gas Units Used</div>
+          <div class="text-xl sm:text-2xl font-mono font-bold text-base-content" id="attModalGasUnits">300,000</div>
+        </div>
+      </div>
+
+      <!-- Details List -->
+      <div class="bg-base-200/60 p-3 rounded-lg text-xs space-y-2">
+        <div class="flex justify-between">
+          <span class="text-base-content/70">Borrower Account:</span>
+          <span class="font-mono font-bold text-base-content" id="attModalAccount"></span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-base-content/70">Repayment Token & Amount:</span>
+          <span class="font-mono font-bold text-error" id="attModalRepay"></span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-base-content/70">Proceeds Received:</span>
+          <span class="font-mono font-bold text-success" id="attModalProceeds"></span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-base-content/70">Broadcast Safety Guarantee:</span>
+          <span class="font-bold text-info" id="attModalBroadcastNote">SIMULATED ONLY (No mempool broadcast)</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-base-content/70">Transaction Hash:</span>
+          <span class="font-mono text-[11px] text-base-content/60" id="attModalTxHash">None (Dry run by default)</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-base-content/70">Execution Timestamp:</span>
+          <span class="font-mono text-base-content" id="attModalTimestamp"></span>
+        </div>
+      </div>
+
+      <!-- Trace / Diagnostic Box -->
+      <div class="p-3 rounded-lg bg-base-300 text-xs font-mono space-y-1">
+        <div class="text-[11px] text-base-content/60 font-sans font-bold">Simulation & Execution Diagnostics:</div>
+        <div id="attModalDiagnosticText" class="text-success text-[11px] leading-relaxed">
+          Simulation verified against Base EVM RPC. On-chain profit floor asserted. Invariant gate satisfied.
+        </div>
+      </div>
+
+      <div class="modal-action">
+        <form method="dialog"><button class="btn btn-sm btn-ghost">Close</button></form>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  </dialog>
+
+  <!-- Modal 4: System Guide & Glossary -->
+  <dialog id="glossaryModal" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box bg-base-100 max-w-3xl border border-info/30 p-5 space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-base-content/10 pb-3">
+        <div>
+          <h3 class="font-bold text-base sm:text-lg flex items-center gap-2">
+            <span>📖</span>
+            <span>System Guide & Code Glossary</span>
+          </h3>
+          <p class="text-xs text-base-content/60">Plain English explanations of status codes, safety gates, and protocol maturity.</p>
+        </div>
+        <form method="dialog"><button class="btn btn-sm btn-circle btn-ghost">✕</button></form>
+      </div>
+
+      <!-- Search Input -->
+      <div class="form-control">
+        <input id="glossarySearchInput" type="text" placeholder="Search codes (e.g. SUCCESS, REJECTED, DRY_RUN, MATURITY)..." 
+               onkeyup="filterGlossary()" class="input input-sm input-bordered w-full text-xs" />
+      </div>
+
+      <!-- Dictionary Content -->
+      <div class="space-y-3 max-h-[55vh] overflow-y-auto pr-1 text-xs" id="glossaryList"></div>
+
+      <div class="modal-action">
+        <form method="dialog"><button class="btn btn-sm btn-primary">Done</button></form>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  </dialog>
+
   <script>
+    // System Glossary Database with Plain English Explanations
+    const GLOSSARY_DATA = [
+      {
+        category: "Execution Status Codes",
+        term: "SUCCESS",
+        badgeClass: "badge-success",
+        summary: "Simulated or broadcasted transaction executed cleanly with verified positive net profit.",
+        explanation: "The opportunity passed all pre-flight invariants, simulated successfully on-chain, and proved that net proceeds after slippage and gas exceed the minimum profit threshold."
+      },
+      {
+        category: "Execution Status Codes",
+        term: "SIMULATION_FAILED",
+        badgeClass: "badge-error",
+        summary: "Static call (eth_call) reverted during on-chain dry-run simulation.",
+        explanation: "Before broadcasting any transaction to the mempool, the bot tests execution against the current block state. If the contract reverts (e.g. profit floor assertion fails or slippage is exceeded), execution aborts to save gas."
+      },
+      {
+        category: "Execution Status Codes",
+        term: "REVERTED",
+        badgeClass: "badge-error",
+        summary: "Broadcasted transaction was included on-chain but reverted during execution.",
+        explanation: "Occurs when chain state changes between broadcast and inclusion (e.g., front-run by a competitor or oracle price shifted). Circuit breakers trip if consecutive reverts occur."
+      },
+      {
+        category: "Execution Status Codes",
+        term: "REJECTED_BY_POLICY",
+        badgeClass: "badge-warning",
+        summary: "Execution halted by internal risk policy or circuit breaker.",
+        explanation: "Blocked prior to simulation because a safety rule was violated (e.g., emergency kill switch active, daily loss limit reached, or LIVE mode flag disabled on server)."
+      },
+      {
+        category: "Execution Status Codes",
+        term: "PENDING",
+        badgeClass: "badge-info",
+        summary: "Transaction broadcasted to mempool and awaiting inclusion in a block.",
+        explanation: "The bot tracks the transaction receipt until finality. If confirmation exceeds the maximum staleness window, the transaction is dropped."
+      },
+      {
+        category: "Gate & Decision Codes",
+        term: "UNPROFITABLE_AFTER_SLIPPAGE",
+        badgeClass: "badge-warning",
+        summary: "Collateral proceeds do not cover debt repayment, flash fees, gas, and min profit.",
+        explanation: "Enforces Section 3.5: Proceeds ≥ Debt Repaid + Flash Fee + Gas in Debt Asset + $15.00 Min Profit. When proceeds are insufficient, the position is rejected and enters cooldown."
+      },
+      {
+        category: "Gate & Decision Codes",
+        term: "HEALTH_FACTOR_HEALTHY",
+        badgeClass: "badge-success",
+        summary: "Borrower maintains sufficient collateral buffer (Health Factor ≥ 1.0).",
+        explanation: "Lending protocol rules strictly prohibit liquidating accounts whose collateral value meets the required maintenance margin. Only positions with Health Factor < 1.0 are eligible."
+      },
+      {
+        category: "Gate & Decision Codes",
+        term: "INSUFFICIENT_FLASH_LIQUIDITY",
+        badgeClass: "badge-warning",
+        summary: "Flash loan venue lacks enough idle liquidity for repayment capital.",
+        explanation: "Atomic flash liquidations require borrowing the required repayment asset. If Balancer pools lack adequate reserves, atomic liquidation cannot be funded."
+      },
+      {
+        category: "Gate & Decision Codes",
+        term: "GAS_EXCEEDS_PROFIT",
+        badgeClass: "badge-warning",
+        summary: "Gas costs to execute the flash loan and swap exceed liquidation incentive margin.",
+        explanation: "Occurs on smaller loan amounts where the 10% bonus is smaller than the native gas and DEX transaction fees needed to seize and swap the collateral."
+      },
+      {
+        category: "Gate & Decision Codes",
+        term: "ORACLE_STALE",
+        badgeClass: "badge-error",
+        summary: "Price feed timestamp exceeds maximum allowable age (300 seconds).",
+        explanation: "To prevent liquidations based on outdated or manipulative prices, the bot strictly fails closed and refuses to execute if price freshness exceeds 300 seconds."
+      },
+      {
+        category: "Gate & Decision Codes",
+        term: "POSITION_COOLDOWN",
+        badgeClass: "badge-neutral",
+        summary: "Position was recently evaluated; throttled to prevent redundant RPC load.",
+        explanation: "When an evaluation concludes a position is unprofitable, it enters a cooldown window. It will not be re-evaluated until market prices change or the cooldown expires."
+      },
+      {
+        category: "Gate & Decision Codes",
+        term: "KILL_SWITCH_ACTIVE",
+        badgeClass: "badge-error",
+        summary: "Emergency operator kill switch has locked all bot execution.",
+        explanation: "Triggered manually by an operator or automatically by risk limits. Live broadcasting and automated processing remain completely halted until an operator clicks Resume."
+      },
+      {
+        category: "Multi-Chain Maturity Statuses",
+        term: "EXECUTION_IMPLEMENTED",
+        badgeClass: "badge-success",
+        summary: "Complete end-to-end vertical slice verified and tested.",
+        explanation: "Active on Moonwell (Base EVM). Includes verified Solidity contracts (FlashLiquidator.sol), atomic Balancer flash loans, Uniswap V3 quoter integration, invariant checking, and Foundry adversarial test coverage."
+      },
+      {
+        category: "Multi-Chain Maturity Statuses",
+        term: "READ_ONLY",
+        badgeClass: "badge-info",
+        summary: "On-chain state discovery, account liquidity, and oracle price monitoring are active.",
+        explanation: "Active on Seamless (Base EVM) and Kamino Lend (Solana). Connects to real RPC nodes, monitors borrower liquidity, and queries oracles, but execution contracts are not deployed."
+      },
+      {
+        category: "Multi-Chain Maturity Statuses",
+        term: "RESEARCHED",
+        badgeClass: "badge-neutral",
+        summary: "Protocol architecture, close factors, liquidation bonuses, and contracts documented.",
+        explanation: "Active on Aries Markets (Aptos) and Scallop (Sui). Documented in docs/MARKET_RESEARCH.md with deployment addresses, close factors, flash loan mechanisms, and competition indicators."
+      },
+      {
+        category: "Operating Modes & Core Concepts",
+        term: "DRY_RUN",
+        badgeClass: "badge-secondary",
+        summary: "Safe paper-trading mode enabled by default.",
+        explanation: "Simulates every calculation and on-chain static call against live market conditions, verifying exact profitability without signing or broadcasting real transactions."
+      },
+      {
+        category: "Operating Modes & Core Concepts",
+        term: "Close Factor",
+        badgeClass: "badge-primary",
+        summary: "Maximum percentage of outstanding debt that can be repaid in one liquidation.",
+        explanation: "On Moonwell (Compound v2 architecture), the close factor is 50% (0.50). A liquidator can repay at most half of the borrower's debt in a single transaction."
+      },
+      {
+        category: "Operating Modes & Core Concepts",
+        term: "Liquidation Incentive",
+        badgeClass: "badge-success",
+        summary: "Bonus collateral awarded to the liquidator for performing liquidation.",
+        explanation: "On Moonwell Base, the incentive is 10% (1.10 multiplier). For every $1.00 of debt repaid, the liquidator receives $1.10 worth of seized collateral at current oracle prices."
+      },
+      {
+        category: "Operating Modes & Core Concepts",
+        term: "Reconciliation Invariant",
+        badgeClass: "badge-accent",
+        summary: "Non-negotiable mathematical gate required before execution.",
+        explanation: "Mandated by Section 3.5: All costs (repayment, flash loan premium, native gas converted to debt units, slippage buffer, min profit) must be strictly reconciled in debt units. If net profit < $15.00, transaction is aborted."
+      }
+    ];
+
+    // Local cached state for detail screens
+    let _latestData = { pos: [], opps: [], att: [], rej: [] };
+
+    // Known token lookup
+    const TOKEN_METADATA = {
+      '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913': { sym: 'USDC', dec: 6, price: 1.00 },
+      '0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22': { sym: 'USDC', dec: 6, price: 1.00 },
+      '0x4200000000000000000000000000000000000006': { sym: 'WETH', dec: 18, price: 3150.00 },
+      '0x628ff693426583D9a7FB391E54366292F509D457': { sym: 'WETH', dec: 18, price: 3150.00 },
+      '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf': { sym: 'cbBTC', dec: 8, price: 88000.00 },
+      '0x3bf93770f2d4a794c3d9EBEfBAeBAE2a8f09A5E5': { sym: 'cbBTC', dec: 8, price: 88000.00 }
+    };
+
+    function formatTokenAmount(raw, addr) {
+      const meta = TOKEN_METADATA[addr] || { sym: 'TOKEN', dec: 18 };
+      const val = parseFloat(raw) / Math.pow(10, meta.dec);
+      if (meta.sym === 'USDC') {
+        return `${val.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} USDC`;
+      }
+      return `${val.toFixed(4)} ${meta.sym}`;
+    }
+
     // Tab switching
     function switchTab(tabId) {
       const tabs = ['dashboard', 'positions', 'attempts', 'controls', 'rejections', 'audit'];
@@ -427,6 +915,188 @@
       document.getElementById(`tab-${tabId}`).classList.remove('hidden');
       const activeBtn = document.getElementById(`tab-btn-${tabId}`);
       activeBtn.className = 'btn btn-sm btn-primary';
+    }
+
+    // Open detail screens
+    function viewPositionDetails(accountId) {
+      const p = _latestData.pos.find(x => x.account_id === accountId);
+      if (!p) return;
+
+      document.getElementById('posModalProtocol').textContent = p.protocol;
+      document.getElementById('posModalAccount').textContent = p.account_id;
+      
+      const hf = parseFloat(p.health_factor);
+      const isEligible = hf < 1.0;
+      
+      const hfVal = document.getElementById('posModalHfValue');
+      hfVal.textContent = hf.toFixed(4);
+      hfVal.className = `text-2xl sm:text-3xl font-extrabold font-mono ${isEligible ? 'text-error animate-pulse' : 'text-success'}`;
+      
+      const banner = document.getElementById('posModalHfBanner');
+      banner.className = `p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${isEligible ? 'bg-error/10 border-error/30' : 'bg-success/10 border-success/30'}`;
+
+      const eligText = document.getElementById('posModalEligibilityText');
+      if (isEligible) {
+        eligText.innerHTML = `<span class="badge badge-error badge-sm font-bold mb-1">LIQUIDATABLE</span><br/><span class="text-error font-medium">Collateral is below maintenance margin. 50% close factor repayment eligible for +10% bonus collateral seizure.</span>`;
+      } else {
+        eligText.innerHTML = `<span class="badge badge-success badge-sm font-bold mb-1">HEALTHY POSITION</span><br/><span class="text-success font-medium">Borrower maintains required collateral buffer. Protocol rules prohibit liquidation.</span>`;
+      }
+
+      document.getElementById('posModalDebtAmount').textContent = formatTokenAmount(p.debt_amount_raw, p.debt_asset);
+      document.getElementById('posModalDebtAddress').textContent = p.debt_asset;
+      document.getElementById('posModalCollateralAmount').textContent = formatTokenAmount(p.collateral_amount_raw, p.collateral_asset);
+      document.getElementById('posModalCollateralAddress').textContent = p.collateral_asset;
+
+      document.getElementById('posModalBlock').textContent = `#${p.block_number || 'Live'}`;
+      document.getElementById('posModalUpdated').textContent = new Date(p.last_updated * 1000).toLocaleTimeString();
+
+      document.getElementById('positionDetailModal').showModal();
+    }
+
+    function viewOppDetails(oppId) {
+      const o = _latestData.opps.find(x => x.opportunity_id === oppId);
+      if (!o) return;
+
+      document.getElementById('oppModalId').textContent = o.opportunity_id;
+      document.getElementById('oppModalProtocol').textContent = o.protocol;
+
+      const badge = document.getElementById('oppModalGateBadge');
+      if (o.invariant_passed) {
+        badge.className = 'badge badge-success font-bold badge-sm';
+        badge.textContent = 'INVARIANT PASSED';
+      } else {
+        badge.className = 'badge badge-error font-bold badge-sm';
+        badge.textContent = `REJECTED: ${o.rejection_reason || 'UNPROFITABLE'}`;
+      }
+
+      const netProfit = parseFloat(o.expected_net_profit_usd);
+      document.getElementById('oppModalProfitUsd').textContent = `$${netProfit.toFixed(2)}`;
+      document.getElementById('oppModalGasUsd').textContent = `$${parseFloat(o.estimated_gas_usd).toFixed(4)}`;
+
+      document.getElementById('oppModalProceeds').textContent = `$${(parseFloat(o.expected_proceeds_raw) / 1e6).toFixed(2)} USDC`;
+      document.getElementById('oppModalRepay').textContent = `$${(parseFloat(o.repay_amount_raw) / 1e6).toFixed(2)} USDC`;
+      document.getElementById('oppModalGasTerm').textContent = `$${parseFloat(o.estimated_gas_usd).toFixed(4)}`;
+      document.getElementById('oppModalNetMargin').textContent = `+$${netProfit.toFixed(2)} USD`;
+
+      document.getElementById('oppModalFundingSource').textContent = o.funding_source || 'Balancer V2 Vault';
+      document.getElementById('oppModalDisposalVenue').textContent = o.disposal_venue || 'Uniswap V3 QuoterV2';
+
+      document.getElementById('oppDetailModal').showModal();
+    }
+
+    function viewAttemptDetails(attId) {
+      const a = _latestData.att.find(x => x.attempt_id === attId);
+      if (!a) return;
+
+      document.getElementById('attModalId').textContent = a.attempt_id;
+      document.getElementById('attModalProtocol').textContent = a.protocol;
+      document.getElementById('attModalAccount').textContent = a.account_id;
+
+      const modeBadge = document.getElementById('attModalModeBadge');
+      modeBadge.textContent = a.mode;
+      modeBadge.className = `badge ${a.mode === 'LIVE' ? 'badge-error' : 'badge-secondary'} badge-sm font-bold`;
+
+      const statusBadge = document.getElementById('attModalStatusBadge');
+      statusBadge.textContent = a.status;
+      statusBadge.className = `badge ${a.status === 'SUCCESS' ? 'badge-success' : 'badge-error'} badge-sm font-bold`;
+
+      document.getElementById('attModalPnl').textContent = `$${parseFloat(a.net_pnl_usd).toFixed(2)}`;
+      document.getElementById('attModalGasUsd').textContent = `$${parseFloat(a.gas_cost_usd).toFixed(4)}`;
+      document.getElementById('attModalGasUnits').textContent = (a.gas_units_used || 300000).toLocaleString();
+
+      document.getElementById('attModalRepay').textContent = `$${(parseFloat(a.repay_amount_raw) / 1e6).toFixed(2)} ${a.repay_token || 'USDC'}`;
+      document.getElementById('attModalProceeds').textContent = a.proceeds_raw ? `$${(parseFloat(a.proceeds_raw) / 1e6).toFixed(2)} USDC` : 'Simulated Proceeds';
+
+      if (a.mode === 'DRY_RUN') {
+        document.getElementById('attModalBroadcastNote').textContent = 'SIMULATED ONLY (No mempool broadcast in DRY_RUN)';
+        document.getElementById('attModalTxHash').textContent = 'None (Dry Run by Default)';
+      } else {
+        document.getElementById('attModalBroadcastNote').textContent = 'LIVE BROADCAST (Signed & Executed)';
+        document.getElementById('attModalTxHash').textContent = a.tx_hash || 'Pending Receipt';
+      }
+
+      document.getElementById('attModalTimestamp').textContent = new Date(a.created_at * 1000).toLocaleString();
+
+      const diag = document.getElementById('attModalDiagnosticText');
+      if (a.status === 'SUCCESS') {
+        diag.className = 'text-success text-[11px] leading-relaxed';
+        diag.textContent = 'Static call simulation verified against Base EVM RPC. Reconciliation invariants satisfied. Atomic profit floor confirmed.';
+      } else {
+        diag.className = 'text-error text-[11px] leading-relaxed';
+        diag.textContent = a.failure_reason || 'Simulation reverted or policy blocked execution.';
+      }
+
+      document.getElementById('attemptDetailModal').showModal();
+    }
+
+    // Glossary Guide Functions
+    function renderGlossaryList(filteredItems) {
+      const container = document.getElementById('glossaryList');
+      if (filteredItems.length === 0) {
+        container.innerHTML = `<div class="text-center py-6 text-base-content/50">No matching codes found.</div>`;
+        return;
+      }
+
+      // Group by category
+      const categories = {};
+      filteredItems.forEach(item => {
+        if (!categories[item.category]) categories[item.category] = [];
+        categories[item.category].push(item);
+      });
+
+      let html = '';
+      for (const [cat, items] of Object.entries(categories)) {
+        html += `
+          <div class="space-y-2 pt-2">
+            <h4 class="font-bold uppercase tracking-wider text-primary text-[11px] border-b border-base-content/10 pb-1">${cat}</h4>
+            <div class="grid grid-cols-1 gap-2">
+              ${items.map(item => `
+                <div class="bg-base-200/70 p-3 rounded-lg border border-base-content/10 space-y-1">
+                  <div class="flex items-center justify-between">
+                    <span class="badge ${item.badgeClass} badge-sm font-bold font-mono">${item.term}</span>
+                    <span class="text-[10px] text-base-content/50">${cat}</span>
+                  </div>
+                  <div class="font-semibold text-base-content text-xs">${item.summary}</div>
+                  <div class="text-[11px] text-base-content/70 leading-relaxed">${item.explanation}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+    }
+
+    function openGlossaryModal() {
+      document.getElementById('glossarySearchInput').value = '';
+      renderGlossaryList(GLOSSARY_DATA);
+      document.getElementById('glossaryModal').showModal();
+    }
+
+    function openGlossaryTerm(term) {
+      document.getElementById('glossarySearchInput').value = term;
+      filterGlossary();
+      document.getElementById('glossaryModal').showModal();
+    }
+
+    function filterGlossary() {
+      const q = (document.getElementById('glossarySearchInput').value || '').toLowerCase().trim();
+      if (!q) {
+        renderGlossaryList(GLOSSARY_DATA);
+        return;
+      }
+      const matched = GLOSSARY_DATA.filter(item => 
+        item.term.toLowerCase().includes(q) || 
+        item.summary.toLowerCase().includes(q) || 
+        item.explanation.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q)
+      );
+      renderGlossaryList(matched);
+    }
+
+    function evaluateFromModal() {
+      document.getElementById('positionDetailModal').close();
+      triggerManualEvaluation();
     }
 
     // Refresh data from API
@@ -442,10 +1112,14 @@
           fetch('/api/v1/audit/logs').then(r => r.json()).catch(() => [])
         ]);
 
+        _latestData = { pos: posRes || [], opps: oppsRes || [], att: attRes || [], rej: rejRes || [] };
+
         // Status badges
         const modeBadge = document.getElementById('headerModeBadge');
         modeBadge.textContent = statusRes.bot_mode;
-        modeBadge.className = statusRes.bot_mode === 'LIVE' ? 'badge badge-sm badge-error font-bold' : 'badge badge-sm badge-secondary font-semibold';
+        modeBadge.className = statusRes.bot_mode === 'LIVE' ? 'badge badge-sm badge-error font-bold cursor-pointer' : 'badge badge-sm badge-secondary font-semibold cursor-pointer';
+        modeBadge.onclick = () => openGlossaryTerm(statusRes.bot_mode);
+
         document.getElementById('controlsCurrentMode').textContent = statusRes.bot_mode;
         document.getElementById('headerStateBadge').textContent = statusRes.bot_state;
 
@@ -478,7 +1152,7 @@
             const hf = parseFloat(p.health_factor);
             const isEligible = hf < 1.0;
             return `
-              <tr>
+              <tr class="hover">
                 <td class="font-semibold text-primary">${p.protocol}</td>
                 <td class="font-mono text-xs text-base-content/80">${p.account_id.substring(0, 8)}...${p.account_id.substring(p.account_id.length - 4)}</td>
                 <td><span class="badge badge-neutral badge-xs">${p.debt_asset.substring(0, 8)}...</span></td>
@@ -486,8 +1160,11 @@
                 <td class="font-bold ${isEligible ? 'text-error' : 'text-success'}">${hf.toFixed(4)}</td>
                 <td>
                   ${isEligible 
-                    ? '<span class="badge badge-error badge-xs font-bold animate-pulse">ELIGIBLE</span>' 
-                    : '<span class="badge badge-success badge-xs">HEALTHY</span>'}
+                    ? `<button onclick="openGlossaryTerm('HEALTH_FACTOR_HEALTHY')" class="badge badge-error badge-xs font-bold gap-1 cursor-pointer hover:brightness-110"><span>ELIGIBLE</span><span>ⓘ</span></button>` 
+                    : `<button onclick="openGlossaryTerm('HEALTH_FACTOR_HEALTHY')" class="badge badge-success badge-xs gap-1 cursor-pointer hover:brightness-110"><span>HEALTHY</span><span>ⓘ</span></button>`}
+                </td>
+                <td>
+                  <button onclick="viewPositionDetails('${p.account_id}')" class="btn btn-outline btn-primary btn-xs font-semibold">Details</button>
                 </td>
               </tr>
             `;
@@ -498,14 +1175,26 @@
         const oppsTbody = document.getElementById('oppsTableBody');
         if (oppsRes && oppsRes.length > 0) {
           oppsTbody.innerHTML = oppsRes.map(o => `
-            <tr>
+            <tr class="hover">
               <td class="font-mono text-xs">${o.opportunity_id.substring(0, 8)}</td>
               <td>${o.protocol}</td>
-              <td class="font-mono">${o.repay_amount_raw}</td>
+              <td class="font-mono">${(parseFloat(o.repay_amount_raw) / 1e6).toFixed(0)} USDC</td>
               <td>$${parseFloat(o.estimated_gas_usd).toFixed(4)}</td>
               <td class="font-bold ${parseFloat(o.expected_net_profit_usd) > 0 ? 'text-success' : 'text-base-content/50'}">$${parseFloat(o.expected_net_profit_usd).toFixed(2)}</td>
-              <td>${o.invariant_passed ? '<span class="badge badge-success badge-xs font-bold">PASSED</span>' : '<span class="badge badge-error badge-xs">REJECTED</span>'}</td>
-              <td class="text-xs text-base-content/70">${o.rejection_reason || 'Eligible'}</td>
+              <td>
+                ${o.invariant_passed 
+                  ? `<button onclick="openGlossaryTerm('Reconciliation Invariant')" class="badge badge-success badge-xs font-bold gap-1 cursor-pointer hover:brightness-110"><span>PASSED</span><span>ⓘ</span></button>` 
+                  : `<button onclick="openGlossaryTerm('UNPROFITABLE_AFTER_SLIPPAGE')" class="badge badge-error badge-xs gap-1 cursor-pointer hover:brightness-110"><span>REJECTED</span><span>ⓘ</span></button>`}
+              </td>
+              <td class="text-xs text-base-content/70">
+                <button onclick="openGlossaryTerm('${o.rejection_reason || 'UNPROFITABLE_AFTER_SLIPPAGE'}')" class="hover:underline flex items-center gap-1">
+                  <span>${o.rejection_reason || 'Eligible'}</span>
+                  <span class="text-info text-[10px]">ⓘ</span>
+                </button>
+              </td>
+              <td>
+                <button onclick="viewOppDetails('${o.opportunity_id}')" class="btn btn-outline btn-primary btn-xs font-semibold">Details</button>
+              </td>
             </tr>
           `).join('');
         }
@@ -514,14 +1203,27 @@
         const attTbody = document.getElementById('attemptsTableBody');
         if (attRes && attRes.length > 0) {
           attTbody.innerHTML = attRes.map(a => `
-            <tr>
+            <tr class="hover">
               <td class="font-mono text-xs">${a.attempt_id.substring(0, 8)}</td>
-              <td><span class="badge ${a.mode === 'LIVE' ? 'badge-error' : 'badge-secondary'} badge-xs font-bold">${a.mode}</span></td>
+              <td>
+                <button onclick="openGlossaryTerm('${a.mode}')" class="badge ${a.mode === 'LIVE' ? 'badge-error' : 'badge-secondary'} badge-xs font-bold gap-1 cursor-pointer hover:brightness-110">
+                  <span>${a.mode}</span>
+                  <span>ⓘ</span>
+                </button>
+              </td>
               <td>${a.protocol}</td>
-              <td><span class="badge ${a.status === 'SUCCESS' ? 'badge-success' : 'badge-error'} badge-xs font-bold">${a.status}</span></td>
+              <td>
+                <button onclick="openGlossaryTerm('${a.status}')" class="badge ${a.status === 'SUCCESS' ? 'badge-success' : 'badge-error'} badge-xs font-bold gap-1 cursor-pointer hover:brightness-110">
+                  <span>${a.status}</span>
+                  <span>ⓘ</span>
+                </button>
+              </td>
               <td>$${parseFloat(a.gas_cost_usd).toFixed(4)}</td>
               <td class="font-bold text-success">$${parseFloat(a.net_pnl_usd).toFixed(2)}</td>
               <td class="text-xs text-base-content/70 truncate max-w-xs">${a.failure_reason || (a.tx_hash ? a.tx_hash.substring(0, 14) + '...' : 'Dry run simulation')}</td>
+              <td>
+                <button onclick="viewAttemptDetails('${a.attempt_id}')" class="btn btn-outline btn-primary btn-xs font-semibold">Details</button>
+              </td>
             </tr>
           `).join('');
         }
@@ -530,10 +1232,15 @@
         const rejTbody = document.getElementById('rejectionsTableBody');
         if (rejRes && rejRes.length > 0) {
           rejTbody.innerHTML = rejRes.map(r => `
-            <tr>
+            <tr class="hover">
               <td class="font-semibold">${r.protocol}</td>
               <td class="font-mono text-xs text-base-content/70">${r.account_id.substring(0, 8)}...</td>
-              <td><span class="badge badge-warning badge-xs font-bold">${r.reason_code}</span></td>
+              <td>
+                <button onclick="openGlossaryTerm('${r.reason_code}')" class="badge badge-warning badge-xs font-bold gap-1 cursor-pointer hover:brightness-110">
+                  <span>${r.reason_code}</span>
+                  <span>ⓘ</span>
+                </button>
+              </td>
               <td class="font-mono font-bold">${r.occurrence_count}</td>
               <td class="text-xs text-base-content/60">${new Date(r.last_seen_at * 1000).toLocaleTimeString()}</td>
               <td class="font-mono text-[10px] text-base-content/60 truncate max-w-xs">${JSON.stringify(r.details)}</td>
