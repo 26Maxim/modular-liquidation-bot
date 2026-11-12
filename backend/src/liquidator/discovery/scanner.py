@@ -103,6 +103,10 @@ BORROW_TOPIC = "0x13ed6866d4e1ee6da46f845c46d7e54120883d75c5ea9a2dacc1c4ca8984ab
 REPAY_BORROW_TOPIC = "0x1a2a22cb034d26d1854bdc6666a5b91fe25efbbb5dcad3b0355478d6f5c362a1"
 LIQUIDATE_BORROW_TOPIC = "0x298637f684da70674f26509b10f07ec2fbc77a335ab1e7d6215a4b2484d8bb52"
 
+# Seamless Protocol (Aave v3 Architecture on Base)
+SEAMLESS_POOL_ADDRESS = "0x8F44Fd754285aa6A2b8B9B97739B79746e0475a7"
+SEAMLESS_BORROW_TOPIC = "0xc6a898309e823ee50bac64e45ca8adba6690e99e7841c45d754e2a38e9019d9b"
+
 # Real active Moonwell tokens on Base
 KNOWN_TOKENS: Dict[str, Token] = {
     "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22": Token(
@@ -269,6 +273,8 @@ class PositionDiscoveryScanner:
             except Exception:
                 pass
 
+
+
             # Query for competitor liquidations (LiquidateBorrow events)
             try:
                 liq_logs = await self.w3.eth.get_logs({
@@ -315,7 +321,26 @@ class PositionDiscoveryScanner:
             except Exception:
                 pass
 
-        # 2. Inspect watched accounts on-chain at current block (Fail closed)
+
+
+        # 2. Query Seamless (Aave v3) Pool for live Borrow events on Base
+        try:
+            seamless_logs = await self.w3.eth.get_logs({
+                "address": self.w3.to_checksum_address(SEAMLESS_POOL_ADDRESS),
+                "topics": [SEAMLESS_BORROW_TOPIC],
+                "fromBlock": from_b,
+                "toBlock": to_b,
+            })
+            for log in seamless_logs:
+                data = log["data"].hex()
+                borrower = self.w3.to_checksum_address("0x" + data[24:64])
+                if borrower not in self.watched_accounts:
+                    self.watched_accounts.add(borrower)
+                    logger.info(f"Stream discovery: New Seamless borrower {borrower} at block {block_number}")
+        except Exception:
+            pass
+
+        # 3. Inspect watched accounts on-chain at current block (Fail closed)
         ranked_accounts = []
         for account in list(self.watched_accounts):
             account_addr = self.w3.to_checksum_address(account)
