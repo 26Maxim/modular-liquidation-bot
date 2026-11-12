@@ -193,6 +193,7 @@ class InvertedIndexEngine:
         chain: Optional[str] = None,
         tier: Optional[str] = None,
         search: Optional[str] = None,
+        sort_by: Optional[str] = "health_factor",
         page: int = 1,
         page_size: int = 10,
     ) -> Dict[str, Any]:
@@ -215,8 +216,14 @@ class InvertedIndexEngine:
                 or s in p.protocol.lower()
             ]
 
-        # Sort by health factor ascending (most vulnerable first)
-        results.sort(key=lambda p: p.health_factor)
+        # Sorting logic
+        if sort_by == "last_updated":
+            results.sort(key=lambda p: p.last_updated, reverse=True)
+        elif sort_by == "distance":
+            results.sort(key=lambda p: float(p.distance_to_liq_pct if p.distance_to_liq_pct is not None else 999.0))
+        else:
+            # Default: sort by health factor ascending (most vulnerable first)
+            results.sort(key=lambda p: p.health_factor)
 
         total_count = len(results)
         total_pages = max(1, (total_count + page_size - 1) // page_size)

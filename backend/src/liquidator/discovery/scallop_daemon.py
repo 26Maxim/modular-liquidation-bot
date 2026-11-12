@@ -89,9 +89,10 @@ class ScallopDiscoveryDaemon:
                 amount = int(json_data.get("amount", "1000000000"))
                 seq = int(node.get("sequenceNumber", 0))
 
-                if not obligation or obligation in self._seen_obligations:
+                if not obligation:
                     continue
 
+                is_new = obligation not in self._seen_obligations
                 self._seen_obligations.add(obligation)
 
                 # Construct borrower position on Sui
@@ -118,11 +119,11 @@ class ScallopDiscoveryDaemon:
                     pos = self.inverted_index.index_position(pos)
 
                 await self.repository.upsert_borrower_position(pos)
-                new_positions_count += 1
-                logger.info(f"Scallop daemon discovered obligation: {obligation} (borrower {borrower})")
-
-                if self.event_sink:
-                    await self.event_sink.emit("position_discovered", pos.model_dump())
+                if is_new:
+                    new_positions_count += 1
+                    logger.info(f"Scallop daemon discovered obligation: {obligation} (borrower {borrower})")
+                    if self.event_sink:
+                        await self.event_sink.emit("position_discovered", pos.model_dump())
 
             return new_positions_count
         except Exception as e:

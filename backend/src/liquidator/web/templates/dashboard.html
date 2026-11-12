@@ -337,6 +337,13 @@
                 <option value="WARM">⚠️ WARM (1.10 < HF ≤ 1.30)</option>
                 <option value="COLD">❄️ COLD (HF > 1.30)</option>
               </select>
+
+              <!-- Sort Filter -->
+              <select id="posSortSelect" class="select select-xs select-bordered text-xs" onchange="changePosFilter()">
+                <option value="health_factor" selected>Sort: Health Factor (Lowest)</option>
+                <option value="last_updated">Sort: Recently Checked (Newest)</option>
+                <option value="distance">Sort: Distance to Liq (Closest)</option>
+              </select>
             </div>
 
             <!-- Page Size -->
@@ -362,12 +369,13 @@
                   <th>Liq. Price (P_liq)</th>
                   <th>Health Factor</th>
                   <th>Tier</th>
+                  <th>Last Verified</th>
                   <th>Status</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody id="positionsTableBody">
-                <tr><td colspan="9" class="text-center py-4 text-base-content/50">Loading indexed open debt positions...</td></tr>
+                <tr><td colspan="10" class="text-center py-4 text-base-content/50">Loading indexed open debt positions...</td></tr>
               </tbody>
             </table>
           </div>
@@ -1270,6 +1278,7 @@
       chain: 'ALL',
       tier: 'ALL',
       search: '',
+      sortBy: 'health_factor',
       page: 1,
       pageSize: 10
     };
@@ -1279,6 +1288,15 @@
       totalPages: 1
     };
     let _searchDebounceTimer = null;
+
+    function formatAge(ts) {
+      if (!ts) return '<span class="text-base-content/40 font-mono">Live</span>';
+      const diff = Math.max(0, Math.floor(Date.now() / 1000 - ts));
+      if (diff < 5) return '<span class="text-success font-bold font-mono">🟢 Live (just now)</span>';
+      if (diff < 60) return `<span class="text-success font-semibold font-mono">🟢 Live (${diff}s ago)</span>`;
+      if (diff < 3600) return `<span class="text-base-content/70 font-mono">⏱️ ${Math.floor(diff / 60)}m ago</span>`;
+      return `<span class="text-base-content/50 font-mono">⏱️ ${Math.floor(diff / 3600)}h ago</span>`;
+    }
 
     function debouncePosSearch() {
       clearTimeout(_searchDebounceTimer);
@@ -1292,6 +1310,8 @@
     function changePosFilter() {
       _posFilter.chain = document.getElementById('posChainSelect').value;
       _posFilter.tier = document.getElementById('posTierSelect').value;
+      const sortEl = document.getElementById('posSortSelect');
+      if (sortEl) _posFilter.sortBy = sortEl.value;
       _posFilter.page = 1;
       refreshPositionsOnly();
     }
@@ -1321,7 +1341,7 @@
 
     async function refreshPositionsOnly() {
       try {
-        const queryUrl = `/api/v1/positions?chain=${_posFilter.chain}&tier=${_posFilter.tier}&search=${encodeURIComponent(_posFilter.search)}&page=${_posFilter.page}&page_size=${_posFilter.pageSize}`;
+        const queryUrl = `/api/v1/positions?chain=${_posFilter.chain}&tier=${_posFilter.tier}&search=${encodeURIComponent(_posFilter.search)}&sort_by=${_posFilter.sortBy}&page=${_posFilter.page}&page_size=${_posFilter.pageSize}`;
         const posRes = await fetch(queryUrl).then(r => r.json());
         renderPositionsFromResponse(posRes);
       } catch (e) {
@@ -1359,7 +1379,7 @@
       // Render rows
       const posTbody = document.getElementById('positionsTableBody');
       if (!items || items.length === 0) {
-        posTbody.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-base-content/50">No open debt positions match the selected filters.</td></tr>`;
+        posTbody.innerHTML = `<tr><td colspan="10" class="text-center py-6 text-base-content/50">No open debt positions match the selected filters.</td></tr>`;
         return;
       }
 
@@ -1405,6 +1425,12 @@
               </button>
             </td>
             <td>
+              <div class="flex flex-col">
+                ${formatAge(p.last_updated)}
+                <span class="text-[10px] text-base-content/40 font-mono">#${p.block_number || 'Live'}</span>
+              </div>
+            </td>
+            <td>
               ${isEligible 
                 ? `<button onclick="openGlossaryTerm('HEALTH_FACTOR_HEALTHY')" class="badge badge-error badge-xs font-bold gap-1 cursor-pointer hover:brightness-110"><span>ELIGIBLE</span><span>ⓘ</span></button>` 
                 : `<button onclick="openGlossaryTerm('HEALTH_FACTOR_HEALTHY')" class="badge badge-success badge-xs gap-1 cursor-pointer hover:brightness-110"><span>HEALTHY</span><span>ⓘ</span></button>`}
@@ -1425,7 +1451,7 @@
     // Refresh data from API
     async function refreshData() {
       try {
-        const posQueryUrl = `/api/v1/positions?chain=${_posFilter.chain}&tier=${_posFilter.tier}&search=${encodeURIComponent(_posFilter.search)}&page=${_posFilter.page}&page_size=${_posFilter.pageSize}`;
+        const posQueryUrl = `/api/v1/positions?chain=${_posFilter.chain}&tier=${_posFilter.tier}&search=${encodeURIComponent(_posFilter.search)}&sort_by=${_posFilter.sortBy}&page=${_posFilter.page}&page_size=${_posFilter.pageSize}`;
         const [statusRes, metricsRes, posRes, oppsRes, attRes, rejRes, audRes] = await Promise.all([
           fetch('/api/v1/status').then(r => r.json()),
           fetch('/api/v1/metrics').then(r => r.json()),

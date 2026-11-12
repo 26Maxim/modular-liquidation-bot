@@ -282,6 +282,7 @@ def create_api_router(
         chain: Optional[str] = Query(None),
         tier: Optional[str] = Query(None),
         search: Optional[str] = Query(None),
+        sort_by: Optional[str] = Query("health_factor"),
         page: int = Query(1, ge=1),
         page_size: int = Query(10, ge=1, le=100),
         raw: bool = Query(False),
@@ -292,6 +293,7 @@ def create_api_router(
                 chain=chain,
                 tier=tier,
                 search=search,
+                sort_by=sort_by,
                 page=page,
                 page_size=page_size,
             )
@@ -601,7 +603,7 @@ def create_api_router(
                         break
                     try:
                         event_data = await asyncio.wait_for(queue.get(), timeout=15.0)
-                        yield f"event: {event_data['type']}\ndata: {json.dumps(event_data)}\n\n"
+                        yield f"event: {event_data['type']}\ndata: {json.dumps(event_data, default=str)}\n\n"
                     except asyncio.TimeoutError:
                         # Send heartbeat comment to keep connection alive
                         yield ": heartbeat\n\n"
