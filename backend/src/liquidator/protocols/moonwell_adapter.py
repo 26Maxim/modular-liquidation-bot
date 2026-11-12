@@ -24,7 +24,7 @@ class MoonwellAdapter(LendingProtocolAdapter):
 
     def __init__(
         self,
-        comptroller_address: str = "0xfBb21156Cc56a1745773299298379B5e7834E35A",
+        comptroller_address: str = "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
         close_factor_mantissa: Decimal = Decimal("0.5"),  # 50%
         liquidation_incentive_mantissa: Decimal = Decimal("1.10"),  # 10% bonus
     ):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from contextlib import asynccontextmanager
 from typing import Any, Dict
@@ -18,6 +19,7 @@ from liquidator.chains.sui_adapter import SuiChainAdapter
 from liquidator.core.config import AppSettings
 from liquidator.core.models import ChainType, RiskParameters
 from liquidator.discovery.oracle_watcher import OracleUpdateWatcher
+from liquidator.discovery.scanner import PositionDiscoveryScanner
 from liquidator.eligibility.evaluator import OpportunityEvaluator
 from liquidator.execution.executor import LiquidationExecutor
 from liquidator.funding.balancer_flash_loan import BalancerFlashLoanAdapter
@@ -100,12 +102,24 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
         event_sink=event_hub,
     )
 
+    # 10. Background Position Discovery Scanner
+    scanner = PositionDiscoveryScanner(
+        repository=repository,
+        rpc_url=settings.BASE_RPC_URL,
+        comptroller_address=settings.MOONWELL_COMPTROLLER_ADDRESS,
+        poll_interval=25.0,
+        event_sink=event_hub,
+    )
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         # Startup: initialize database tables
         await db.init_models()
+        scanner_task = asyncio.create_task(scanner.start())
         yield
-        # Shutdown: close DB
+        # Shutdown: close DB & cancel background task
+        scanner.stop()
+        scanner_task.cancel()
         await db.close()
 
     app = FastAPI(

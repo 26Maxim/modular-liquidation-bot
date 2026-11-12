@@ -53,13 +53,14 @@ class AppSettings(BaseSettings):
     CORS_ORIGINS: List[str] = ["http://localhost:8090", "http://127.0.0.1:8090"]
 
     # Chain RPC Providers
-    BASE_RPC_URL: str = Field(default="https://mainnet.base.org", description="Base EVM RPC")
+    BASE_RPC_URL: str = Field(default="https://base-rpc.publicnode.com", description="Base EVM RPC")
     SOLANA_RPC_URL: str = Field(default="https://api.mainnet-beta.solana.com", description="Solana RPC")
     SUI_RPC_URL: str = Field(default="https://fullnode.mainnet.sui.io:443", description="Sui RPC")
     APTOS_RPC_URL: str = Field(default="https://fullnode.mainnet.aptoslabs.com/v1", description="Aptos RPC")
 
     # Contract Addresses (Moonwell on Base)
-    MOONWELL_COMPTROLLER_ADDRESS: str = "0xfBb21156Cc56a1745773299298379B5e7834E35A"
+    # Verified Moonwell Comptroller (Unitroller Proxy) on Base: 0xfBb21d0380beE3312B33c4353c8936a0F13EF26C
+    MOONWELL_COMPTROLLER_ADDRESS: str = "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C"
     BALANCER_VAULT_ADDRESS: str = "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
     UNISWAP_V3_ROUTER_ADDRESS: str = "0x2626664c2603336E57B271c5C0b26F421741e481"
     UNISWAP_V3_QUOTER_ADDRESS: str = "0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a"

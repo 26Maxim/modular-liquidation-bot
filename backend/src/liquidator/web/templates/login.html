@@ -1,36 +1,37 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="night">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ app_name }} - Sign In</title>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" type="text/css" />
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4 antialiased">
-  <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-6 shadow-2xl">
+<body class="bg-base-300 text-base-content min-h-screen flex items-center justify-center p-4 antialiased">
+  <div class="card max-w-sm sm:max-w-md w-full bg-base-100 border border-base-content/10 shadow-2xl p-6 sm:p-8 space-y-6">
     <div class="text-center space-y-2">
-      <div class="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/40 mx-auto flex items-center justify-center text-2xl text-emerald-400">
+      <div class="w-12 h-12 rounded-xl bg-primary/20 border border-primary/30 mx-auto flex items-center justify-center text-2xl text-primary font-bold">
         ⚡
       </div>
-      <h1 class="text-xl font-bold tracking-tight text-slate-100">{{ app_name }}</h1>
-      <p class="text-xs text-slate-400">Modular Multi-Chain Liquidation Control Plane</p>
+      <h1 class="text-lg sm:text-xl font-bold tracking-tight text-base-content">{{ app_name }}</h1>
+      <p class="text-xs text-base-content/60">Modular Multi-Chain Liquidation Control Plane</p>
     </div>
 
-    <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-xs text-slate-400 space-y-2">
-      <div class="flex items-center space-x-2 text-slate-300 font-semibold">
+    <div class="p-3 bg-base-200/80 rounded-xl border border-base-content/5 text-xs text-base-content/70 space-y-1.5">
+      <div class="flex items-center gap-2 text-base-content font-semibold">
         <span>🔒</span>
         <span>Secure Authentication Notice</span>
       </div>
-      <p>
-        This management portal requires Google OpenID Connect authentication with PKCE.
+      <p class="text-[11px] leading-relaxed">
+        Requires Google OpenID Connect authentication with PKCE.
         Only identities explicitly authorized on the server allowlist may access controls.
       </p>
     </div>
 
     <div class="space-y-3">
       <!-- Google Sign In Button -->
-      <a href="/auth/login" class="w-full flex items-center justify-center space-x-3 bg-white hover:bg-slate-100 text-slate-900 font-semibold text-sm py-2.5 px-4 rounded-xl shadow transition duration-150">
-        <svg class="w-5 h-5" viewBox="0 0 24 24">
+      <a href="/auth/login" class="btn btn-block bg-white hover:bg-slate-100 text-slate-900 border-none font-semibold text-xs sm:text-sm shadow gap-2">
+        <svg class="w-4 h-4" viewBox="0 0 24 24">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
           <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
           <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
@@ -39,17 +40,17 @@
         <span>Sign in with Google</span>
       </a>
 
-      <!-- Dev Auth Bypass (Only shown if DEV_AUTH_BYPASS is active) -->
+      <!-- Dev Auth Bypass (Only active if DEV_AUTH_BYPASS is true) -->
       {% if dev_auth_bypass %}
-      <div class="pt-2 border-t border-slate-800">
-        <button onclick="devLogin()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs py-2 px-4 rounded-xl border border-slate-700">
-          🛠️ Development Mock Sign-In (Local Test Mode)
+      <div class="pt-2 border-t border-base-content/10">
+        <button onclick="devLogin()" class="btn btn-sm btn-block btn-outline btn-neutral text-xs font-mono">
+          🛠️ Development Mock Sign-In (Local Mode)
         </button>
       </div>
       {% endif %}
     </div>
 
-    <div class="text-center text-[11px] text-slate-500">
+    <div class="text-center text-[10px] text-base-content/50">
       Dry-run by default. Not an audited product.
     </div>
   </div>
