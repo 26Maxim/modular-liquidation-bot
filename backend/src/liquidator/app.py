@@ -142,9 +142,9 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
             return RedirectResponse(url="/login")
 
         return templates.TemplateResponse(
-            "dashboard.html",
-            {
-                "request": request,
+            request=request,
+            name="dashboard.html",
+            context={
                 "app_name": settings.APP_NAME,
                 "allow_live_execution": settings.ALLOW_LIVE_EXECUTION,
                 "user": user,
@@ -154,9 +154,9 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
     @app.get("/login", response_class=HTMLResponse)
     async def render_login(request: Request):
         return templates.TemplateResponse(
-            "login.html",
-            {
-                "request": request,
+            request=request,
+            name="login.html",
+            context={
                 "app_name": settings.APP_NAME,
                 "dev_auth_bypass": settings.DEV_AUTH_BYPASS,
             },
