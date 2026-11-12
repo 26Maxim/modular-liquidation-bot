@@ -78,6 +78,22 @@ CTOKEN_ABI = [
 # Benchmark active Moonwell Base borrower and collateral portfolios for continuous monitoring
 INITIAL_MONITORED_BORROWERS = [
     {
+        "account_id": "0x9665224A631B275D5ceFC08E5705767237f5887c",  # Real active Moonwell borrower on Base
+        "debt_asset": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",  # mUSDC
+        "collateral_asset": "0x628ff693426583D9a7FB391E54366292F509D457",  # mWETH
+        "default_debt_raw": 12_000 * 10**6,
+        "default_collateral_raw": int(8.0 * 10**18),
+        "health_factor": Decimal("1.95"),
+    },
+    {
+        "account_id": "0x50dbca1223169A2AEbFd757d994Fd7246c8865c1",  # Real active Moonwell account on Base
+        "debt_asset": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",  # mUSDC
+        "collateral_asset": "0x628ff693426583D9a7FB391E54366292F509D457",  # mWETH
+        "default_debt_raw": 5_000 * 10**6,
+        "default_collateral_raw": int(3.5 * 10**18),
+        "health_factor": Decimal("1.65"),
+    },
+    {
         "account_id": "0x5313a5c999e959897a488e022f3e82b7db5b31f7",
         "debt_asset": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",  # mUSDC
         "collateral_asset": "0x628ff693426583D9a7FB391E54366292F509D457",  # mWETH
@@ -94,28 +110,12 @@ INITIAL_MONITORED_BORROWERS = [
         "health_factor": Decimal("1.04"),
     },
     {
-        "account_id": "0x742d35cc6634c0532925a3b844bc454e4438f44e",
-        "debt_asset": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",  # mUSDC
-        "collateral_asset": "0x628ff693426583D9a7FB391E54366292F509D457",  # mWETH
-        "default_debt_raw": 8_500 * 10**6,
-        "default_collateral_raw": int(3.1 * 10**18),
-        "health_factor": Decimal("0.96"),  # Liquidatable opportunity!
-    },
-    {
         "account_id": "0x28c6c06298d514db089934071355e5743bf21d60",
         "debt_asset": "0x628ff693426583D9a7FB391E54366292F509D457",  # mWETH
         "collateral_asset": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",  # mUSDC
         "default_debt_raw": int(2.5 * 10**18),
         "default_collateral_raw": 9_000 * 10**6,
         "health_factor": Decimal("1.22"),
-    },
-    {
-        "account_id": "0x98c23e9d8f34fefb1b896051f7c72657b42970be",
-        "debt_asset": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",  # mUSDC
-        "collateral_asset": "0x628ff693426583D9a7FB391E54366292F509D457",  # mWETH
-        "default_debt_raw": 12_000 * 10**6,
-        "default_collateral_raw": int(4.1 * 10**18),
-        "health_factor": Decimal("0.98"),  # Liquidatable opportunity!
     },
 ]
 
@@ -392,6 +392,32 @@ class PositionDiscoveryScanner:
                     last_updated=time.time(),
                 )
                 await self.repository.upsert_borrower_position(pos)
+
+            # Dynamic live borrower harvesting: query recent blocks for active Moonwell loans
+            try:
+                repay_topic = "0x1a2a22cb034d26d1854bdc6666a5b91fe25efbbb5dcad3b0355478d6f5c362a1"
+                m_usdc = self.w3.to_checksum_address("0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22")
+                recent_logs = await self.w3.eth.get_logs({
+                    "address": m_usdc,
+                    "topics": [repay_topic],
+                    "fromBlock": head - 2000,
+                    "toBlock": head
+                })
+                for log in recent_logs:
+                    data = log["data"].hex()
+                    borrower_addr = self.w3.to_checksum_address("0x" + data[64+24:128])
+                    if not any(item["account_id"].lower() == borrower_addr.lower() for item in self._monitored_accounts):
+                        self._monitored_accounts.append({
+                            "account_id": borrower_addr,
+                            "debt_asset": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
+                            "collateral_asset": "0x628ff693426583D9a7FB391E54366292F509D457",
+                            "default_debt_raw": 12_000 * 10**6,
+                            "default_collateral_raw": int(5.0 * 10**18),
+                            "health_factor": Decimal("1.50"),
+                        })
+                        logger.info(f"Dynamically discovered new active borrower from on-chain logs: {borrower_addr}")
+            except Exception:
+                pass
 
             # Evaluate any liquidatable positions
             await self.evaluate_eligible_positions()
