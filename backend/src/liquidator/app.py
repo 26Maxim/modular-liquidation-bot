@@ -103,20 +103,24 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
     )
 
     # 10. Execution Slice Adapters
-    moonwell_adapter = MoonwellAdapter(comptroller_address=settings.MOONWELL_COMPTROLLER_ADDRESS)
+    evm_adapter = EVMChainAdapter(rpc_url=settings.BASE_RPC_URL)
+    moonwell_adapter = MoonwellAdapter(
+        comptroller_address=settings.MOONWELL_COMPTROLLER_ADDRESS,
+        w3=evm_adapter.w3,
+    )
     funding_adapter = BalancerFlashLoanAdapter(vault_address=settings.BALANCER_VAULT_ADDRESS)
     route_adapter = UniswapV3RouteAdapter(
         quoter_address=settings.UNISWAP_V3_QUOTER_ADDRESS,
         router_address=settings.UNISWAP_V3_ROUTER_ADDRESS,
+        w3=evm_adapter.w3,
     )
-    evm_adapter = EVMChainAdapter(rpc_url=settings.BASE_RPC_URL)
 
-    # 11. Background Position Discovery Scanner & Paper-Trade Evaluator
+    # 11. Background Real-Time Block & Event Streaming Scanner
     scanner = PositionDiscoveryScanner(
         repository=repository,
         rpc_url=settings.BASE_RPC_URL,
         comptroller_address=settings.MOONWELL_COMPTROLLER_ADDRESS,
-        poll_interval=25.0,
+        poll_interval=2.0,  # Stream at 2s block intervals on Base
         event_sink=event_hub,
         evaluator=evaluator,
         executor=executor,

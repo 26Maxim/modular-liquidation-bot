@@ -130,6 +130,7 @@ class LiquidationOpportunity(BaseModel):
     expected_net_profit_usd: Decimal
     invariant_passed: bool
     rejection_reason: Optional[ReasonCode] = None
+    detection_block: Optional[int] = None
     created_at: float = Field(default_factory=time.time)
 
 
@@ -153,6 +154,10 @@ class LiquidationAttempt(BaseModel):
     status: AttemptOutcome
     tx_hash: Optional[str] = None
     block_number: Optional[int] = None
+    detection_block: Optional[int] = None
+    competitor_liquidated: bool = False
+    competitor_address: Optional[str] = None
+    latency_blocks: Optional[int] = None
     repay_token_symbol: str
     repay_amount_raw: int
     proceeds_raw: int = 0

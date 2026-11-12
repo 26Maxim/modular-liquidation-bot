@@ -63,6 +63,7 @@ class OpportunityRecord(Base):
     expected_net_profit_usd = Column(Numeric(18, 6), nullable=False)
     invariant_passed = Column(Boolean, nullable=False)
     rejection_reason = Column(String(64), nullable=True)
+    detection_block = Column(BigInteger, nullable=True)
     created_at = Column(Float, default=time.time)
 
     __table_args__ = (
@@ -121,6 +122,10 @@ class AttemptRecord(Base):
     status = Column(String(32), nullable=False)
     tx_hash = Column(String(128), nullable=True)
     block_number = Column(BigInteger, nullable=True)
+    detection_block = Column(BigInteger, nullable=True)
+    competitor_liquidated = Column(Boolean, default=False)
+    competitor_address = Column(String(128), nullable=True)
+    latency_blocks = Column(Integer, nullable=True)
     repay_token_symbol = Column(String(16), nullable=False)
     repay_amount_raw = Column(String(78), nullable=False)
     proceeds_raw = Column(String(78), default="0")

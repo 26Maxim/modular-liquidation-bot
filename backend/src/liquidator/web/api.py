@@ -235,28 +235,51 @@ def create_api_router(
         # Deduplicate attempts by unique loan account to prevent counting duplicate paper liquidations
         seen_accounts = set()
         deduped_attempts = []
+        competitor_count = 0
+        total_latency_blocks = 0
+        latency_samples = 0
+
         for a in attempts:
+            if getattr(a, "competitor_liquidated", False):
+                competitor_count += 1
+                if getattr(a, "latency_blocks", None) is not None:
+                    total_latency_blocks += a.latency_blocks
+                    latency_samples += 1
             key = (a.protocol, a.account_id)
-            if key not in seen_accounts:
+            if key not in seen_accounts and not getattr(a, "competitor_liquidated", False):
                 seen_accounts.add(key)
                 deduped_attempts.append(a)
 
         realized_pnl = sum(a.net_pnl_usd for a in deduped_attempts if a.status == "SUCCESS")
         gas_spent = sum(a.gas_cost_usd for a in deduped_attempts)
+        successful_bot_attempts = len([a for a in deduped_attempts if a.status == "SUCCESS"])
+
+        total_battles = successful_bot_attempts + competitor_count
+        capture_rate = (successful_bot_attempts / total_battles) if total_battles > 0 else 0.0
+        avg_latency_sec = (total_latency_blocks / latency_samples * 2.0) if latency_samples > 0 else 0.0
+
+        comp_dict = event_hub.competition_metrics.model_dump()
+        comp_dict["competitor_observed_attempts"] = competitor_count
+        comp_dict["average_detection_to_inclusion_seconds"] = round(avg_latency_sec, 2)
+        comp_dict["capture_rate"] = round(capture_rate, 4)
 
         return {
-            "competition": event_hub.competition_metrics.model_dump(),
+            "competition": comp_dict,
             "realized_pnl_usd": str(realized_pnl),
             "gas_costs_usd": str(gas_spent),
             "total_attempts": len(deduped_attempts),
-            "successful_attempts": len([a for a in deduped_attempts if a.status == "SUCCESS"]),
+            "successful_attempts": successful_bot_attempts,
             "failed_attempts": len([a for a in deduped_attempts if a.status in {"REVERTED", "SIMULATION_FAILED"}]),
+            "competitor_attempts": competitor_count,
+            "capture_rate": capture_rate,
         }
 
     # --- Positions & Opportunities ---
     @router.get("/api/v1/positions")
     async def get_positions(user: AuthenticatedUser = Depends(security.get_current_user)):
         positions = await repository.get_all_positions()
+        # Prioritize positions closest to shortfall (lowest health factor first)
+        sorted_positions = sorted(positions, key=lambda p: float(p.health_factor))
         return [
             {
                 "id": p.id,
@@ -271,7 +294,7 @@ def create_api_router(
                 "block_number": p.block_number,
                 "last_updated": p.last_updated,
             }
-            for p in positions
+            for p in sorted_positions
         ]
 
     @router.get("/api/v1/opportunities")
@@ -294,6 +317,7 @@ def create_api_router(
                 "expected_net_profit_usd": str(o.expected_net_profit_usd),
                 "invariant_passed": o.invariant_passed,
                 "rejection_reason": o.rejection_reason,
+                "detection_block": o.detection_block,
                 "created_at": o.created_at,
             }
             for o in opps
@@ -331,6 +355,10 @@ def create_api_router(
                 "status": a.status,
                 "tx_hash": a.tx_hash,
                 "block_number": a.block_number,
+                "detection_block": a.detection_block,
+                "competitor_liquidated": a.competitor_liquidated,
+                "competitor_address": a.competitor_address,
+                "latency_blocks": a.latency_blocks,
                 "repay_token": a.repay_token_symbol,
                 "repay_amount_raw": a.repay_amount_raw,
                 "proceeds_raw": a.proceeds_raw,

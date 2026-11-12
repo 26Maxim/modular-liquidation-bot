@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import time
 import uuid
 from decimal import Decimal
+from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from liquidator.core.interfaces import (
     CollateralRouteAdapter,
@@ -50,6 +54,7 @@ class OpportunityEvaluator:
         funding_adapter: FundingAdapter,
         route_adapter: CollateralRouteAdapter,
         estimated_gas_units: int = 350_000,
+        detection_block: Optional[int] = None,
     ) -> LiquidationOpportunity:
         opp_id = f"opp_{uuid.uuid4().hex[:12]}"
         now = time.time()
@@ -122,12 +127,27 @@ class OpportunityEvaluator:
             )
         flash_premium_raw = funding_adapter.calculate_fee(debt_token, repay_raw)
 
-        # 5. Query Collateral Disposal Route for Exact Sized Proceeds
-        proceeds_raw = await route_adapter.get_quote(
-            from_token=collateral_token,
-            to_token=debt_token,
-            amount_in_raw=expected_collateral_raw,
-        )
+        # 5. Query Collateral Disposal Route for Exact Sized Proceeds at detection block
+        target_block = detection_block or position.block_number
+        try:
+            proceeds_raw = await route_adapter.get_quote(
+                from_token=collateral_token,
+                to_token=debt_token,
+                amount_in_raw=expected_collateral_raw,
+                block_identifier=target_block,
+            )
+        except Exception as e:
+            # Fail closed: If static call reverts or can't run, record no opportunity
+            logger.warning(
+                f"Fail closed: QuoterV2 quote failed for {position.account_id} at block {target_block}: {e}"
+            )
+            return self._build_ineligible_opp(
+                opp_id=opp_id,
+                position=position,
+                debt_token=debt_token,
+                collateral_token=collateral_token,
+                reason=ReasonCode.SLIPPAGE_EXCEEDED,
+            )
 
         # 6. Convert Gas to Debt Asset Units and USD (Mandatory Section 3.5)
         gas_in_debt_raw, gas_cost_usd = native_gas_to_debt_units(
@@ -197,6 +217,7 @@ class OpportunityEvaluator:
             expected_net_profit_usd=inv_result.net_profit_usd,
             invariant_passed=inv_result.passed,
             rejection_reason=inv_result.rejection_reason,
+            detection_block=target_block,
             created_at=now,
         )
 

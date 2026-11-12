@@ -211,6 +211,7 @@ class Repository:
                 expected_net_profit_usd=opp.expected_net_profit_usd,
                 invariant_passed=opp.invariant_passed,
                 rejection_reason=opp.rejection_reason.value if opp.rejection_reason else None,
+                detection_block=opp.detection_block,
                 created_at=opp.created_at,
             )
             await session.merge(record)
@@ -236,6 +237,10 @@ class Repository:
                 status=attempt.status.value,
                 tx_hash=attempt.tx_hash,
                 block_number=attempt.block_number,
+                detection_block=attempt.detection_block,
+                competitor_liquidated=attempt.competitor_liquidated,
+                competitor_address=attempt.competitor_address,
+                latency_blocks=attempt.latency_blocks,
                 repay_token_symbol=attempt.repay_token_symbol,
                 repay_amount_raw=str(attempt.repay_amount_raw),
                 proceeds_raw=str(attempt.proceeds_raw),

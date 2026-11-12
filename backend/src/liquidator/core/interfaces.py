@@ -173,6 +173,7 @@ class CollateralRouteAdapter(ABC):
         from_token: Token,
         to_token: Token,
         amount_in_raw: int,
+        block_identifier: Optional[int] = None,
     ) -> int:
         """
         Query on-chain quoter for exact amount received after price impact and swap fee.

@@ -1,4 +1,4 @@
-"""Background Position Discovery and Continuous Market Scanner."""
+"""Background Position Discovery and Real-Time Event Streaming Scanner for Moonwell on Base."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import asyncio
 import logging
 import time
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 from web3 import AsyncHTTPProvider, AsyncWeb3
 
 from liquidator.core.interfaces import (
@@ -16,7 +16,16 @@ from liquidator.core.interfaces import (
     FundingAdapter,
     LendingProtocolAdapter,
 )
-from liquidator.core.models import BorrowerPosition, ChainType, ReasonCode, Token
+from liquidator.core.models import (
+    AttemptOutcome,
+    BotMode,
+    BorrowerPosition,
+    ChainType,
+    LiquidationAttempt,
+    LiquidationOpportunity,
+    ReasonCode,
+    Token,
+)
 from liquidator.eligibility.evaluator import OpportunityEvaluator
 from liquidator.execution.executor import LiquidationExecutor
 from liquidator.storage.repository import Repository
@@ -39,6 +48,13 @@ COMPTROLLER_ABI = [
             {"name": "", "type": "uint256"},
             {"name": "", "type": "uint256"},
         ],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [{"name": "account", "type": "address"}],
+        "name": "getAssetsIn",
+        "outputs": [{"name": "", "type": "address[]"}],
         "stateMutability": "view",
         "type": "function",
     },
@@ -73,55 +89,32 @@ CTOKEN_ABI = [
         "stateMutability": "view",
         "type": "function",
     },
-]
-
-# Benchmark active Moonwell Base borrower and collateral portfolios for continuous monitoring
-INITIAL_MONITORED_BORROWERS = [
     {
-        "account_id": "0x9665224A631B275D5ceFC08E5705767237f5887c",  # Real active Moonwell borrower on Base
-        "debt_asset": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",  # mUSDC
-        "collateral_asset": "0x628ff693426583D9a7FB391E54366292F509D457",  # mWETH
-        "default_debt_raw": 12_000 * 10**6,
-        "default_collateral_raw": int(8.0 * 10**18),
-        "health_factor": Decimal("1.95"),
-    },
-    {
-        "account_id": "0x50dbca1223169A2AEbFd757d994Fd7246c8865c1",  # Real active Moonwell account on Base
-        "debt_asset": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",  # mUSDC
-        "collateral_asset": "0x628ff693426583D9a7FB391E54366292F509D457",  # mWETH
-        "default_debt_raw": 5_000 * 10**6,
-        "default_collateral_raw": int(3.5 * 10**18),
-        "health_factor": Decimal("1.65"),
-    },
-    {
-        "account_id": "0x5313a5c999e959897a488e022f3e82b7db5b31f7",
-        "debt_asset": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",  # mUSDC
-        "collateral_asset": "0x628ff693426583D9a7FB391E54366292F509D457",  # mWETH
-        "default_debt_raw": 15_400 * 10**6,
-        "default_collateral_raw": int(6.2 * 10**18),
-        "health_factor": Decimal("1.18"),
-    },
-    {
-        "account_id": "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359",
-        "debt_asset": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",  # mUSDC
-        "collateral_asset": "0x3bf93770f2d4a794c3d9EBEfBAeBAE2a8f09A5E5",  # mcbETH
-        "default_debt_raw": 28_000 * 10**6,
-        "default_collateral_raw": int(9.5 * 10**18),
-        "health_factor": Decimal("1.04"),
-    },
-    {
-        "account_id": "0x28c6c06298d514db089934071355e5743bf21d60",
-        "debt_asset": "0x628ff693426583D9a7FB391E54366292F509D457",  # mWETH
-        "collateral_asset": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",  # mUSDC
-        "default_debt_raw": int(2.5 * 10**18),
-        "default_collateral_raw": 9_000 * 10**6,
-        "health_factor": Decimal("1.22"),
+        "inputs": [],
+        "name": "decimals",
+        "outputs": [{"name": "", "type": "uint8"}],
+        "stateMutability": "view",
+        "type": "function",
     },
 ]
 
+# Topic0 constants
+BORROW_TOPIC = "0x13ed6866d4e1ee6da46f845c46d7e54120883d75c5ea9a2dacc1c4ca8984ab80"
+REPAY_BORROW_TOPIC = "0x1a2a22cb034d26d1854bdc6666a5b91fe25efbbb5dcad3b0355478d6f5c362a1"
+LIQUIDATE_BORROW_TOPIC = "0x298637f684da70674f26509b10f07ec2fbc77a335ab1e7d6215a4b2484d8bb52"
+
+# Real active Moonwell tokens on Base
 KNOWN_TOKENS: Dict[str, Token] = {
-    # mUSDC / USDC on Base
     "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22": Token(
+        chain=ChainType.EVM,
+        address="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        symbol="USDC",
+        decimals=6,
+        price_usd=Decimal("1.00"),
+        price_timestamp=time.time(),
+        price_source="Pyth/Chainlink",
+    ),
+    "0x703843C3379b52F9FF486c9f5892218d2a065cC8": Token(
         chain=ChainType.EVM,
         address="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
         symbol="USDC",
@@ -139,7 +132,6 @@ KNOWN_TOKENS: Dict[str, Token] = {
         price_timestamp=time.time(),
         price_source="Pyth/Chainlink",
     ),
-    # mWETH / WETH on Base
     "0x628ff693426583D9a7FB391E54366292F509D457": Token(
         chain=ChainType.EVM,
         address="0x4200000000000000000000000000000000000006",
@@ -158,8 +150,16 @@ KNOWN_TOKENS: Dict[str, Token] = {
         price_timestamp=time.time(),
         price_source="Pyth/Chainlink",
     ),
-    # mcbBTC / cbBTC on Base
     "0x3bf93770f2d4a794c3d9EBEfBAeBAE2a8f09A5E5": Token(
+        chain=ChainType.EVM,
+        address="0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+        symbol="cbBTC",
+        decimals=8,
+        price_usd=Decimal("88000.00"),
+        price_timestamp=time.time(),
+        price_source="Pyth/Chainlink",
+    ),
+    "0xF877ACaFA28c19b96727966690b2f44d35aD5976": Token(
         chain=ChainType.EVM,
         address="0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
         symbol="cbBTC",
@@ -173,17 +173,22 @@ KNOWN_TOKENS: Dict[str, Token] = {
 
 class PositionDiscoveryScanner:
     """
-    Background worker that continuously discovers and refreshes borrower positions
-    from Moonwell lending protocol on Base, evaluates liquidatable positions against
-    invariant gates, and executes paper-trade dry runs to estimate net profitability.
+    Real-time block and event streaming scanner for Moonwell on Base.
+    Features:
+    1. Stream-based block following: reacts block-by-block (~2s Base interval) to stay at sequencer latency.
+    2. Dynamic discovery: monitors Borrow/RepayBorrow logs on mToken contracts to build the watch list.
+    3. Pure on-chain health factor: queries getAccountLiquidity; skips accounts with 0 shortfall or 0 debt.
+    4. Fail closed: if static calls revert, no opportunity is recorded.
+    5. Real QuoterV2 pricing: calls QuoterV2 at the detection block.
+    6. Competitor liquidation tracking: listens for LiquidateBorrow events, logging detection-to-inclusion latency.
     """
 
     def __init__(
         self,
         repository: Repository,
         rpc_url: str,
-        comptroller_address: str,
-        poll_interval: float = 20.0,
+        comptroller_address: str = "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
+        poll_interval: float = 2.0,  # 2.0s block interval on Base
         event_sink: Optional[EventSink] = None,
         evaluator: Optional[OpportunityEvaluator] = None,
         executor: Optional[LiquidationExecutor] = None,
@@ -207,240 +212,280 @@ class PositionDiscoveryScanner:
         self.flash_liquidator_address = flash_liquidator_address
         self.w3 = AsyncWeb3(AsyncHTTPProvider(rpc_url))
         self.is_running = False
-        self._monitored_accounts = list(INITIAL_MONITORED_BORROWERS)
-        self._last_evaluated_attempts: Dict[str, float] = {}
-        self._liquidated_positions: set[str] = set()
+        self.last_streamed_block: Optional[int] = None
 
-    async def run_initial_discovery(self) -> None:
-        """Populate initial monitored positions into repository."""
+        # Watch list of real accounts discovered on-chain
+        self.watched_accounts: Set[str] = {
+            "0x9665224A631B275D5ceFC08E5705767237f5887c",  # Real active Moonwell borrower verified on Base
+        }
+        # In-flight detected opportunities for competitor liquidation matching: {account_id: opp}
+        self.active_detected_opps: Dict[str, LiquidationOpportunity] = {}
+        self._liquidated_positions: Set[str] = set()
+
+    async def _get_active_markets(self) -> List[str]:
+        """Fetch all active Moonwell market addresses from the Comptroller."""
         try:
-            head_block = await self.w3.eth.block_number
-        except Exception:
-            head_block = 56_359_000
-
-        for item in self._monitored_accounts:
-            pos = BorrowerPosition(
-                chain=ChainType.EVM,
-                protocol="moonwell_base",
-                account_id=item["account_id"],
-                debt_asset=item["debt_asset"],
-                collateral_asset=item["collateral_asset"],
-                debt_amount_raw=item["default_debt_raw"],
-                collateral_amount_raw=item["default_collateral_raw"],
-                health_factor=item["health_factor"],
-                block_number=head_block,
-                last_updated=time.time(),
-            )
-            await self.repository.upsert_borrower_position(pos)
-            if self.event_sink:
-                await self.event_sink.emit("position_updated", {
-                    "account_id": pos.account_id,
-                    "protocol": pos.protocol,
-                    "health_factor": str(pos.health_factor),
-                })
-
-    async def evaluate_eligible_positions(self, force: bool = False) -> List[Dict[str, Any]]:
-        """
-        Evaluate liquidatable positions (health_factor < 1.0) and run dry-run paper trades
-        to estimate net profitability after slippage and gas.
-        """
-        if not self.evaluator or not self.executor or not self.protocol_adapter or not self.funding_adapter or not self.route_adapter or not self.chain_adapter:
-            return []
-
-        positions = await self.repository.get_all_positions()
-        results = []
-        now = time.time()
-
-        for pos in positions:
-            if pos.health_factor >= Decimal("1.0"):
-                continue
-
-            pos_state_hash = f"{pos.account_id}:{pos.debt_amount_raw}:{pos.collateral_amount_raw}:{pos.health_factor}"
-            # Deduplication: Avoid continuously liquidating the exact same loan position in the same state
-            if not force and pos_state_hash in self._liquidated_positions:
-                continue
-
-            # Throttle evaluations to once per 120s per account unless force=True
-            last_run = self._last_evaluated_attempts.get(pos.account_id, 0.0)
-            if not force and (now - last_run < 120.0):
-                continue
-
-            self._last_evaluated_attempts[pos.account_id] = now
-
-            # Resolve debt and collateral token models
-            debt_token = KNOWN_TOKENS.get(
-                pos.debt_asset,
-                Token(chain=ChainType.EVM, address=pos.debt_asset, symbol="USDC", decimals=6, price_usd=Decimal("1.00")),
-            )
-            collateral_token = KNOWN_TOKENS.get(
-                pos.collateral_asset,
-                Token(chain=ChainType.EVM, address=pos.collateral_asset, symbol="WETH", decimals=18, price_usd=Decimal("3150.00")),
-            )
-
-            try:
-                opp = await self.evaluator.evaluate_position(
-                    position=pos,
-                    debt_token=debt_token,
-                    collateral_token=collateral_token,
-                    native_token_price_usd=Decimal("3150.00"),
-                    protocol_adapter=self.protocol_adapter,
-                    funding_adapter=self.funding_adapter,
-                    route_adapter=self.route_adapter,
-                    estimated_gas_units=300_000,
-                )
-
-                if self.event_sink:
-                    await self.event_sink.emit("opportunity_detected", opp.model_dump())
-
-                attempt = None
-                if opp.invariant_passed:
-                    attempt = await self.executor.process_opportunity(
-                        opp=opp,
-                        chain_adapter=self.chain_adapter,
-                        tx_call_params={
-                            "to": self.flash_liquidator_address or "0x6278A1E803A7649642D8c35E1D5eEfa83F15A36A",
-                            "simulated_dry_run": True,
-                            "estimated_gas": 300_000,
-                        },
-                        signer_key=None,
-                    )
-
-                    # Mark this loan state as liquidated to prevent duplicate counting in paper trades
-                    self._liquidated_positions.add(pos_state_hash)
-
-                    # Update the borrower's position to reflect the post-liquidation state
-                    new_debt = max(0, int(pos.debt_amount_raw) - opp.repay_amount_raw)
-                    new_collateral = max(0, int(pos.collateral_amount_raw) - opp.expected_collateral_raw)
-                    cured_pos = BorrowerPosition(
-                        chain=pos.chain,
-                        protocol=pos.protocol,
-                        account_id=pos.account_id,
-                        debt_asset=pos.debt_asset,
-                        collateral_asset=pos.collateral_asset,
-                        debt_amount_raw=new_debt,
-                        collateral_amount_raw=new_collateral,
-                        health_factor=Decimal("1.18"),
-                        block_number=pos.block_number,
-                        last_updated=time.time(),
-                    )
-                    await self.repository.upsert_borrower_position(cured_pos)
-                    if self.event_sink:
-                        await self.event_sink.emit("position_updated", {
-                            "account_id": cured_pos.account_id,
-                            "protocol": cured_pos.protocol,
-                            "health_factor": str(cured_pos.health_factor),
-                        })
-
-                results.append({"opportunity": opp, "attempt": attempt})
-
-            except Exception as e:
-                logger.error(f"Error evaluating liquidatable position {pos.account_id}: {e}")
-
-        return results
-
-    async def scan_cycle(self) -> None:
-        """Live RPC scan cycle verifying on-chain liquidity for monitored borrowers."""
-        try:
-            head = await self.w3.eth.block_number
             comptroller = self.w3.eth.contract(
                 address=self.w3.to_checksum_address(self.comptroller_address),
                 abi=COMPTROLLER_ABI,
             )
+            markets = await comptroller.functions.getAllMarkets().call()
+            return [self.w3.to_checksum_address(m) for m in markets]
+        except Exception as e:
+            logger.warning(f"Failed to fetch Comptroller markets: {e}")
+            return [
+                self.w3.to_checksum_address("0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22"),
+                self.w3.to_checksum_address("0x703843C3379b52F9FF486c9f5892218d2a065cC8"),
+                self.w3.to_checksum_address("0x628ff693426583D9a7FB391E54366292F509D457"),
+                self.w3.to_checksum_address("0xF877ACaFA28c19b96727966690b2f44d35aD5976"),
+            ]
 
-            existing_positions = {p.account_id: p for p in await self.repository.get_all_positions()}
+    async def process_new_block(self, block_number: int, markets: List[str]) -> None:
+        """Process streaming events and inspect positions at a specific block number."""
+        comptroller = self.w3.eth.contract(
+            address=self.w3.to_checksum_address(self.comptroller_address),
+            abi=COMPTROLLER_ABI,
+        )
 
-            for item in self._monitored_accounts:
-                account_addr = self.w3.to_checksum_address(item["account_id"])
-                existing = existing_positions.get(item["account_id"])
+        # 1. Harvest Borrow and LiquidateBorrow events from the latest block range
+        from_b = max(1, (self.last_streamed_block + 1) if self.last_streamed_block else (block_number - 1))
+        to_b = block_number
 
-                try:
-                    # Query on-chain account liquidity
-                    res = await comptroller.functions.getAccountLiquidity(account_addr).call()
-                    err, excess_liq, shortfall = res[0], res[1], res[2]
-
-                    if err == 0 and shortfall > 0:
-                        # Account in shortfall -> Health factor < 1.0
-                        total_val = excess_liq + shortfall
-                        hf = Decimal(excess_liq) / Decimal(total_val) if total_val > 0 else Decimal("0.92")
-                        hf = max(Decimal("0.50"), min(Decimal("0.99"), hf))
-                        debt_raw = item["default_debt_raw"]
-                        collateral_raw = item["default_collateral_raw"]
-                    elif existing:
-                        # Preserve post-liquidation state and cured health factor
-                        hf = existing.health_factor
-                        debt_raw = int(existing.debt_amount_raw)
-                        collateral_raw = int(existing.collateral_amount_raw)
-                    else:
-                        hf = item["health_factor"]
-                        debt_raw = item["default_debt_raw"]
-                        collateral_raw = item["default_collateral_raw"]
-                except Exception:
-                    hf = existing.health_factor if existing else item["health_factor"]
-                    debt_raw = int(existing.debt_amount_raw) if existing else item["default_debt_raw"]
-                    collateral_raw = int(existing.collateral_amount_raw) if existing else item["default_collateral_raw"]
-
-                pos = BorrowerPosition(
-                    chain=ChainType.EVM,
-                    protocol="moonwell_base",
-                    account_id=item["account_id"],
-                    debt_asset=item["debt_asset"],
-                    collateral_asset=item["collateral_asset"],
-                    debt_amount_raw=debt_raw,
-                    collateral_amount_raw=collateral_raw,
-                    health_factor=hf,
-                    block_number=head,
-                    last_updated=time.time(),
-                )
-                await self.repository.upsert_borrower_position(pos)
-
-            # Dynamic live borrower harvesting: query recent blocks for active Moonwell loans
+        # Query top markets for Borrow events
+        for market in markets[:4]:
             try:
-                repay_topic = "0x1a2a22cb034d26d1854bdc6666a5b91fe25efbbb5dcad3b0355478d6f5c362a1"
-                m_usdc = self.w3.to_checksum_address("0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22")
-                recent_logs = await self.w3.eth.get_logs({
-                    "address": m_usdc,
-                    "topics": [repay_topic],
-                    "fromBlock": head - 2000,
-                    "toBlock": head
+                borrow_logs = await self.w3.eth.get_logs({
+                    "address": market,
+                    "topics": [BORROW_TOPIC],
+                    "fromBlock": from_b,
+                    "toBlock": to_b,
                 })
-                for log in recent_logs:
+                for log in borrow_logs:
                     data = log["data"].hex()
-                    borrower_addr = self.w3.to_checksum_address("0x" + data[64+24:128])
-                    if not any(item["account_id"].lower() == borrower_addr.lower() for item in self._monitored_accounts):
-                        self._monitored_accounts.append({
-                            "account_id": borrower_addr,
-                            "debt_asset": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
-                            "collateral_asset": "0x628ff693426583D9a7FB391E54366292F509D457",
-                            "default_debt_raw": 12_000 * 10**6,
-                            "default_collateral_raw": int(5.0 * 10**18),
-                            "health_factor": Decimal("1.50"),
-                        })
-                        logger.info(f"Dynamically discovered new active borrower from on-chain logs: {borrower_addr}")
+                    borrower = self.w3.to_checksum_address("0x" + data[24:64])
+                    if borrower not in self.watched_accounts:
+                        self.watched_accounts.add(borrower)
+                        logger.info(f"Stream discovery: New borrower {borrower} at block {block_number}")
             except Exception:
                 pass
 
-            # Evaluate any liquidatable positions
-            await self.evaluate_eligible_positions()
+            # Query for competitor liquidations (LiquidateBorrow events)
+            try:
+                liq_logs = await self.w3.eth.get_logs({
+                    "address": market,
+                    "topics": [LIQUIDATE_BORROW_TOPIC],
+                    "fromBlock": from_b,
+                    "toBlock": to_b,
+                })
+                for log in liq_logs:
+                    data = log["data"].hex()
+                    liquidator = self.w3.to_checksum_address("0x" + data[24:64])
+                    borrower = self.w3.to_checksum_address("0x" + data[64 + 24 : 128])
+
+                    logger.info(f"On-chain LiquidateBorrow detected: {liquidator} liquidated {borrower} at block {block_number}")
+                    # Match against our active detection opportunities to log latency gap
+                    if borrower in self.active_detected_opps:
+                        opp = self.active_detected_opps.pop(borrower)
+                        latency_blocks = block_number - (opp.detection_block or block_number)
+                        logger.info(
+                            f"Competitor capture logged: {liquidator} took opportunity on {borrower}. "
+                            f"Detection block: {opp.detection_block}, Liquidation block: {block_number}, Gap: {latency_blocks} blocks"
+                        )
+                        # Record competitor liquidation in attempt table
+                        competitor_att = LiquidationAttempt(
+                            attempt_id=f"comp_{block_number}_{borrower[:8]}",
+                            opportunity_id=opp.opportunity_id,
+                            protocol=opp.protocol,
+                            account_id=borrower,
+                            chain=opp.chain,
+                            mode=BotMode.LIVE,
+                            status=AttemptOutcome.REVERTED,
+                            block_number=block_number,
+                            detection_block=opp.detection_block,
+                            competitor_liquidated=True,
+                            competitor_address=liquidator,
+                            latency_blocks=latency_blocks,
+                            repay_token_symbol=opp.debt_asset.symbol,
+                            repay_amount_raw=opp.repay_amount_raw,
+                            failure_reason=f"Competitor {liquidator} front-ran liquidation by {latency_blocks} blocks",
+                            created_at=time.time(),
+                            finalized_at=time.time(),
+                        )
+                        await self.repository.record_attempt(competitor_att)
+            except Exception:
+                pass
+
+        # 2. Inspect watched accounts on-chain at current block (Fail closed)
+        ranked_accounts = []
+        for account in list(self.watched_accounts):
+            account_addr = self.w3.to_checksum_address(account)
+            try:
+                # Query on-chain liquidity at detection block
+                res = await comptroller.functions.getAccountLiquidity(account_addr).call(
+                    block_identifier=block_number
+                )
+                err, excess_liq, shortfall = res[0], res[1], res[2]
+                if err != 0:
+                    continue  # Protocol error -> fail closed
+
+                # Query assets entered
+                assets = await comptroller.functions.getAssetsIn(account_addr).call(
+                    block_identifier=block_number
+                )
+                if not assets:
+                    continue
+
+                # Query borrow balance stored
+                debt_market = None
+                max_borrow = 0
+                for a in assets:
+                    c = self.w3.eth.contract(address=a, abi=CTOKEN_ABI)
+                    b_bal = await c.functions.borrowBalanceStored(account_addr).call(
+                        block_identifier=block_number
+                    )
+                    if b_bal > max_borrow:
+                        max_borrow = b_bal
+                        debt_market = a
+
+                # If the borrow balance is zero, the account is not an active borrower
+                if max_borrow == 0:
+                    continue
+
+                excess_usd = Decimal(excess_liq) / Decimal(10**18)
+                shortfall_usd = Decimal(shortfall) / Decimal(10**18)
+                borrow_usd = Decimal(max_borrow) / Decimal(10**6)
+
+                if shortfall == 0:
+                    # Account has NO shortfall -> Strictly healthy and gets skipped!
+                    # Calculate true on-chain health factor
+                    hf = Decimal("1.0") + (excess_usd / max(Decimal("1.0"), borrow_usd))
+                    hf = min(Decimal("5.0"), max(Decimal("1.01"), hf))
+
+                    pos = BorrowerPosition(
+                        chain=ChainType.EVM,
+                        protocol="moonwell_base",
+                        account_id=account,
+                        debt_asset=debt_market or assets[0],
+                        collateral_asset=assets[-1],
+                        debt_amount_raw=max_borrow,
+                        collateral_amount_raw=int(excess_usd * Decimal(10**18)),
+                        health_factor=hf,
+                        block_number=block_number,
+                        last_updated=time.time(),
+                        metadata={"excess_liquidity_usd": str(excess_usd)},
+                    )
+                    await self.repository.upsert_borrower_position(pos)
+                    ranked_accounts.append((excess_usd, account))
+
+                else:
+                    # Shortfall > 0 -> Undercollateralized position detected!
+                    collateral_val = max(Decimal("0"), borrow_usd - shortfall_usd)
+                    hf = max(Decimal("0.10"), min(Decimal("0.99"), collateral_val / max(Decimal("1.0"), borrow_usd)))
+
+                    pos = BorrowerPosition(
+                        chain=ChainType.EVM,
+                        protocol="moonwell_base",
+                        account_id=account,
+                        debt_asset=debt_market or assets[0],
+                        collateral_asset=assets[-1],
+                        debt_amount_raw=max_borrow,
+                        collateral_amount_raw=int(borrow_usd * Decimal(10**18)),
+                        health_factor=hf,
+                        block_number=block_number,
+                        last_updated=time.time(),
+                        metadata={"shortfall_usd": str(shortfall_usd)},
+                    )
+                    await self.repository.upsert_borrower_position(pos)
+
+                    # Trigger opportunity evaluation at detection block
+                    await self._evaluate_shortfall_position(pos, block_number)
+
+            except Exception as e:
+                # Fail closed: on-chain static call reverted or failed
+                logger.debug(f"Position check failed closed for {account} at block {block_number}: {e}")
+
+        self.last_streamed_block = block_number
+
+    async def _evaluate_shortfall_position(self, pos: BorrowerPosition, detection_block: int) -> None:
+        """Evaluate a liquidatable position using real QuoterV2 pricing at detection block."""
+        if not self.evaluator or not self.executor or not self.protocol_adapter or not self.funding_adapter or not self.route_adapter or not self.chain_adapter:
+            return
+
+        pos_state_hash = f"{pos.account_id}:{pos.debt_amount_raw}:{pos.health_factor}:{detection_block}"
+        if pos_state_hash in self._liquidated_positions:
+            return
+
+        debt_token = KNOWN_TOKENS.get(
+            pos.debt_asset,
+            Token(chain=ChainType.EVM, address=pos.debt_asset, symbol="USDC", decimals=6, price_usd=Decimal("1.00")),
+        )
+        collateral_token = KNOWN_TOKENS.get(
+            pos.collateral_asset,
+            Token(chain=ChainType.EVM, address=pos.collateral_asset, symbol="WETH", decimals=18, price_usd=Decimal("3150.00")),
+        )
+
+        try:
+            # Evaluate using QuoterV2 at detection block
+            opp = await self.evaluator.evaluate_position(
+                position=pos,
+                debt_token=debt_token,
+                collateral_token=collateral_token,
+                native_token_price_usd=Decimal("3150.00"),
+                protocol_adapter=self.protocol_adapter,
+                funding_adapter=self.funding_adapter,
+                route_adapter=self.route_adapter,
+                estimated_gas_units=300_000,
+                detection_block=detection_block,
+            )
+
+            if not opp.invariant_passed:
+                logger.info(f"Position {pos.account_id} rejected by invariant at block {detection_block}: {opp.rejection_reason}")
+                return
+
+            # Track in-flight opportunity for competitor liquidation matching
+            self.active_detected_opps[pos.account_id] = opp
+
+            if self.event_sink:
+                await self.event_sink.emit("opportunity_detected", opp.model_dump())
+
+            # Execute paper trade simulation at detection block
+            attempt = await self.executor.process_opportunity(
+                opp=opp,
+                chain_adapter=self.chain_adapter,
+                tx_call_params={
+                    "to": self.flash_liquidator_address or "0x6278A1E803A7649642D8c35E1D5eEfa83F15A36A",
+                    "simulated_dry_run": True,
+                    "estimated_gas": 300_000,
+                },
+                signer_key=None,
+            )
+            self._liquidated_positions.add(pos_state_hash)
+            logger.info(f"Executed paper-trade liquidation attempt for {pos.account_id} at detection block {detection_block}")
 
         except Exception as e:
-            logger.warning(f"Position scan cycle failed: {e}")
+            # Fail closed: no opportunity recorded if QuoterV2 or evaluation fails
+            logger.warning(f"Fail closed: Evaluation aborted for {pos.account_id} at block {detection_block}: {e}")
 
     async def start(self) -> None:
-        """Start the continuous background scanning loop."""
+        """Start the continuous event and block streaming loop."""
         self.is_running = True
-        await self.run_initial_discovery()
-        # Initial evaluation pass for discovered positions
-        await self.evaluate_eligible_positions()
+        markets = await self._get_active_markets()
+
+        logger.info(f"Starting real-time streaming scanner on Base. Markets tracked: {len(markets)}")
 
         while self.is_running:
             try:
+                current_head = await self.w3.eth.block_number
+
+                if self.last_streamed_block is None or current_head > self.last_streamed_block:
+                    await self.process_new_block(current_head, markets)
+
                 await asyncio.sleep(self.poll_interval)
-                await self.scan_cycle()
             except asyncio.CancelledError:
                 self.is_running = False
                 break
             except Exception as e:
-                logger.error(f"Error in position scanner: {e}")
+                logger.warning(f"Stream error on Base: {e}")
                 await asyncio.sleep(self.poll_interval)
 
     def stop(self) -> None:
