@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 # Chainlink Price Feed Aggregators on Base
 CHAINLINK_FEEDS_BASE = {
     "ETH/USD": "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70",
-    "USDC/USD": "0x7e860098F58bBFC8648a4311b374B1Db673B2b82",
-    "cbBTC/USD": "0x0FB99723Aee6f420beAD13e6bBB79b7E6F03388e",
+    "USDC/USD": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+    "cbBTC/USD": "0x07DA0E54543a844a80ABE69c8A12F22B3aA59f9D",
 }
 
 AGGREGATOR_ABI = [
@@ -144,6 +144,7 @@ class OracleUpdateWatcher:
                             update = OraclePriceUpdate(
                                 chain=self.chain,
                                 asset_address=agg_addr,
+                                symbol=pair_name,
                                 price_usd=price_norm,
                                 timestamp=float(updated_at),
                                 round_id=round_id,
