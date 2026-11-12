@@ -37,9 +37,15 @@ class BorrowerPositionRecord(Base):
     health_factor = Column(Numeric(18, 6), nullable=False)
     block_number = Column(BigInteger, nullable=False)
     last_updated = Column(Float, default=time.time)
+    liquidation_price_usd = Column(Numeric(18, 6), nullable=True)
+    tier = Column(String(16), default="COLD")
+    collateral_symbol = Column(String(32), nullable=True)
+    debt_symbol = Column(String(32), nullable=True)
+    distance_to_liq_pct = Column(Numeric(10, 4), nullable=True)
 
     __table_args__ = (
         Index("idx_borrower_health", "chain", "protocol", "health_factor"),
+        Index("idx_borrower_tier", "tier"),
         Index("idx_borrower_account", "account_id"),
     )
 

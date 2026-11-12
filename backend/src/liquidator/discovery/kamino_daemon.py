@@ -41,12 +41,14 @@ class KaminoDiscoveryDaemon:
         program_id: str = KAMINO_PROGRAM_ID,
         poll_interval: float = 12.0,
         event_sink: Optional[EventHub] = None,
+        inverted_index: Optional[Any] = None,
     ):
         self.repository = repository
         self.rpc_url = rpc_url
         self.program_id = program_id
         self.poll_interval = poll_interval
         self.event_sink = event_sink
+        self.inverted_index = inverted_index
         self.is_running = False
         self._seen_signatures: Set[str] = set()
         self.discovered_obligations: Set[str] = set()
@@ -155,6 +157,8 @@ class KaminoDiscoveryDaemon:
 
                 pos = self._parse_transaction(tx_data)
                 if pos:
+                    if self.inverted_index:
+                        pos = self.inverted_index.index_position(pos)
                     await self.repository.upsert_borrower_position(pos)
                     new_positions_count += 1
                     logger.info(f"Kamino daemon discovered obligation: {pos.account_id} at slot {pos.block_number}")

@@ -84,6 +84,7 @@ class Token(BaseModel):
 
 
 class BorrowerPosition(BaseModel):
+    id: Optional[str] = None
     chain: ChainType
     protocol: str
     account_id: str
@@ -95,6 +96,11 @@ class BorrowerPosition(BaseModel):
     block_number: int
     last_updated: float = Field(default_factory=time.time)
     metadata: Dict[str, Any] = Field(default_factory=dict)
+    liquidation_price_usd: Optional[Decimal] = None
+    tier: Optional[str] = "COLD"  # HOT, WARM, COLD
+    collateral_symbol: Optional[str] = None
+    debt_symbol: Optional[str] = None
+    distance_to_liq_pct: Optional[Decimal] = None
 
 
 class InvariantCheckResult(BaseModel):

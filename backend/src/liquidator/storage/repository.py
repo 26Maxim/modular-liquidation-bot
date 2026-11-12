@@ -47,6 +47,11 @@ class Repository:
                     health_factor=pos.health_factor,
                     block_number=pos.block_number,
                     last_updated=pos.last_updated,
+                    liquidation_price_usd=pos.liquidation_price_usd,
+                    tier=pos.tier or "COLD",
+                    collateral_symbol=pos.collateral_symbol,
+                    debt_symbol=pos.debt_symbol,
+                    distance_to_liq_pct=pos.distance_to_liq_pct,
                 )
                 session.add(record)
             else:
@@ -57,6 +62,11 @@ class Repository:
                 record.health_factor = pos.health_factor
                 record.block_number = pos.block_number
                 record.last_updated = pos.last_updated
+                record.liquidation_price_usd = pos.liquidation_price_usd
+                record.tier = pos.tier or "COLD"
+                record.collateral_symbol = pos.collateral_symbol
+                record.debt_symbol = pos.debt_symbol
+                record.distance_to_liq_pct = pos.distance_to_liq_pct
             await session.commit()
 
     async def get_all_positions(self) -> List[BorrowerPositionRecord]:

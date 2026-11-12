@@ -33,11 +33,13 @@ class ScallopDiscoveryDaemon:
         graphql_endpoint: str = SUI_GRAPHQL_ENDPOINT,
         poll_interval: float = 15.0,
         event_sink: Optional[EventHub] = None,
+        inverted_index: Optional[Any] = None,
     ):
         self.repository = repository
         self.graphql_endpoint = graphql_endpoint
         self.poll_interval = poll_interval
         self.event_sink = event_sink
+        self.inverted_index = inverted_index
         self.is_running = False
         self._seen_obligations: Set[str] = set()
 
@@ -111,6 +113,9 @@ class ScallopDiscoveryDaemon:
                         "timestamp": node.get("timestamp"),
                     },
                 )
+
+                if self.inverted_index:
+                    pos = self.inverted_index.index_position(pos)
 
                 await self.repository.upsert_borrower_position(pos)
                 new_positions_count += 1

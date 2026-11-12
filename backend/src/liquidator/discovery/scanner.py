@@ -204,6 +204,7 @@ class PositionDiscoveryScanner:
         funding_adapter: Optional[FundingAdapter] = None,
         route_adapter: Optional[CollateralRouteAdapter] = None,
         flash_liquidator_address: Optional[str] = None,
+        inverted_index: Optional[Any] = None,
     ):
         self.repository = repository
         self.rpc_url = rpc_url
@@ -217,6 +218,7 @@ class PositionDiscoveryScanner:
         self.funding_adapter = funding_adapter
         self.route_adapter = route_adapter
         self.flash_liquidator_address = flash_liquidator_address
+        self.inverted_index = inverted_index
         self.w3 = AsyncWeb3(AsyncHTTPProvider(rpc_url))
         self.is_running = False
         self.last_streamed_block: Optional[int] = None
@@ -345,9 +347,17 @@ class PositionDiscoveryScanner:
             except Exception:
                 pass
 
-        # 3. Inspect watched accounts on-chain at current block (Fail closed)
+        # 3. Inspect high-priority accounts on-chain at current block (Fail closed)
+        # Prioritize HOT tier accounts from inverted index, plus watched accounts
+        accounts_to_check = set(self.watched_accounts)
+        if self.inverted_index:
+            hot_positions = self.inverted_index.get_hot_positions()
+            for p in hot_positions:
+                if p.chain == ChainType.EVM:
+                    accounts_to_check.add(p.account_id)
+
         ranked_accounts = []
-        for account in list(self.watched_accounts):
+        for account in list(accounts_to_check):
             account_addr = self.w3.to_checksum_address(account)
             try:
                 # Query on-chain liquidity at detection block
@@ -404,6 +414,8 @@ class PositionDiscoveryScanner:
                         last_updated=time.time(),
                         metadata={"excess_liquidity_usd": str(excess_usd)},
                     )
+                    if self.inverted_index:
+                        pos = self.inverted_index.index_position(pos)
                     await self.repository.upsert_borrower_position(pos)
                     ranked_accounts.append((excess_usd, account))
 
@@ -425,6 +437,8 @@ class PositionDiscoveryScanner:
                         last_updated=time.time(),
                         metadata={"shortfall_usd": str(shortfall_usd)},
                     )
+                    if self.inverted_index:
+                        pos = self.inverted_index.index_position(pos)
                     await self.repository.upsert_borrower_position(pos)
 
                     # Trigger opportunity evaluation at detection block

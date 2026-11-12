@@ -62,6 +62,7 @@ def create_api_router(
     chain_adapters: Dict[ChainType, Any],
     protocol_adapters: Dict[str, Any],
     scanner: Optional[Any] = None,
+    inverted_index: Optional[Any] = None,
 ) -> APIRouter:
     router = APIRouter()
 
@@ -272,15 +273,38 @@ def create_api_router(
             "failed_attempts": len([a for a in deduped_attempts if a.status in {"REVERTED", "SIMULATION_FAILED"}]),
             "competitor_attempts": competitor_count,
             "capture_rate": capture_rate,
+            "inverted_index": inverted_index.get_summary() if inverted_index else {},
         }
 
     # --- Positions & Opportunities ---
     @router.get("/api/v1/positions")
-    async def get_positions(user: AuthenticatedUser = Depends(security.get_current_user)):
+    async def get_positions(
+        chain: Optional[str] = Query(None),
+        tier: Optional[str] = Query(None),
+        search: Optional[str] = Query(None),
+        page: int = Query(1, ge=1),
+        page_size: int = Query(10, ge=1, le=100),
+        raw: bool = Query(False),
+        user: AuthenticatedUser = Depends(security.get_current_user),
+    ):
+        if inverted_index is not None:
+            query_res = inverted_index.query(
+                chain=chain,
+                tier=tier,
+                search=search,
+                page=page,
+                page_size=page_size,
+            )
+            if raw:
+                return query_res["items"]
+            return {
+                **query_res,
+                "summary": inverted_index.get_summary(),
+            }
+
         positions = await repository.get_all_positions()
-        # Prioritize positions closest to shortfall (lowest health factor first)
         sorted_positions = sorted(positions, key=lambda p: float(p.health_factor))
-        return [
+        items = [
             {
                 "id": p.id,
                 "chain": p.chain,
@@ -291,11 +315,31 @@ def create_api_router(
                 "debt_amount_raw": p.debt_amount_raw,
                 "collateral_amount_raw": p.collateral_amount_raw,
                 "health_factor": str(p.health_factor),
+                "liquidation_price_usd": str(p.liquidation_price_usd or "0.0"),
+                "tier": p.tier or "COLD",
+                "collateral_symbol": p.collateral_symbol or "TOKEN",
+                "debt_symbol": p.debt_symbol or "TOKEN",
+                "distance_to_liq_pct": str(p.distance_to_liq_pct or "0.0"),
                 "block_number": p.block_number,
                 "last_updated": p.last_updated,
             }
             for p in sorted_positions
         ]
+        return {
+            "items": items,
+            "total": len(items),
+            "page": 1,
+            "page_size": len(items),
+            "total_pages": 1,
+            "summary": {
+                "total_monitored": len(items),
+                "hot_count": 0,
+                "warm_count": 0,
+                "cold_count": len(items),
+                "assets_indexed": 0,
+                "closest_to_shortfall": None,
+            },
+        }
 
     @router.get("/api/v1/opportunities")
     async def get_opportunities(user: AuthenticatedUser = Depends(security.get_current_user)):

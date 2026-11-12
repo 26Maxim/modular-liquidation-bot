@@ -35,9 +35,29 @@ class Database:
         )
 
     async def init_models(self) -> None:
-        """Create database tables if they do not exist."""
+        """Create database tables if they do not exist and apply schema migrations."""
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+
+            # Auto-migrate SQLite columns if table was created with older schema
+            def _migrate_sqlite_columns(connection):
+                try:
+                    res = connection.execute("PRAGMA table_info(borrower_positions)").fetchall()
+                    cols = [r[1] for r in res]
+                    needed = [
+                        ("liquidation_price_usd", "NUMERIC(18, 6)"),
+                        ("tier", "VARCHAR(16) DEFAULT 'COLD'"),
+                        ("collateral_symbol", "VARCHAR(32)"),
+                        ("debt_symbol", "VARCHAR(32)"),
+                        ("distance_to_liq_pct", "NUMERIC(10, 4)"),
+                    ]
+                    for name, col_type in needed:
+                        if name not in cols:
+                            connection.execute(f"ALTER TABLE borrower_positions ADD COLUMN {name} {col_type}")
+                except Exception:
+                    pass
+
+            await conn.run_sync(_migrate_sqlite_columns)
 
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
         """Dependency for FastAPI route handlers."""

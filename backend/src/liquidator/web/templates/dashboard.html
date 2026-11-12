@@ -137,6 +137,58 @@
         </div>
       </div>
 
+      <!-- Inverted Index & Shortfall Radar Summaries -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+        <!-- Inverted Index & Tiering Card -->
+        <div class="card bg-base-100 border border-base-content/10 shadow-sm p-4">
+          <div class="flex justify-between items-start">
+            <div>
+              <div class="text-[11px] font-semibold uppercase tracking-wider text-base-content/60">Inverted Index & Tiering</div>
+              <div class="flex items-baseline gap-2 mt-1">
+                <span id="metricIndexTotal" class="text-xl sm:text-2xl font-bold text-primary">0</span>
+                <span class="text-xs text-base-content/60">Open Positions Indexed</span>
+              </div>
+            </div>
+            <button onclick="openGlossaryTerm('MONITORING_TIER_HOT')" class="badge badge-primary badge-outline text-[10px] font-mono cursor-pointer hover:bg-primary hover:text-primary-content">Zero-Latency Cache ⓘ</button>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 mt-3">
+            <button onclick="filterByTier('HOT')" class="badge badge-error badge-sm gap-1 font-semibold cursor-pointer hover:brightness-110"><span id="metricIndexHot">0</span> Hot 🔥</button>
+            <button onclick="filterByTier('WARM')" class="badge badge-warning badge-sm gap-1 font-semibold cursor-pointer hover:brightness-110"><span id="metricIndexWarm">0</span> Warm ⚠️</button>
+            <button onclick="filterByTier('COLD')" class="badge badge-neutral badge-sm gap-1 font-semibold cursor-pointer hover:brightness-110"><span id="metricIndexCold">0</span> Cold ❄️</button>
+          </div>
+          <div id="metricIndexSub" class="text-[11px] text-base-content/50 mt-2 truncate">
+            Collateral assets indexed: 0 (0 per-block RPC for Cold tier)
+          </div>
+        </div>
+
+        <!-- Closest to Shortfall Radar Card -->
+        <div class="card bg-base-100 border border-base-content/10 shadow-sm p-4">
+          <div class="flex justify-between items-start">
+            <div>
+              <div class="text-[11px] font-semibold uppercase tracking-wider text-base-content/60">Closest to Shortfall (Radar)</div>
+              <div class="flex items-baseline gap-2 mt-1">
+                <span id="metricClosestHf" class="text-xl sm:text-2xl font-bold text-error">--</span>
+                <span id="metricClosestDist" class="text-xs font-bold text-error">-- to Liq</span>
+              </div>
+            </div>
+            <button onclick="switchTab('positions')" class="btn btn-outline btn-xs gap-1 text-[11px]">
+              <span>View In Hot Tier</span>
+              <span>→</span>
+            </button>
+          </div>
+          <div class="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-base-content/10 text-xs">
+            <div>
+              <span class="text-base-content/50 block text-[10px]">Target Account:</span>
+              <span id="metricClosestAccount" class="font-mono font-semibold truncate block">None</span>
+            </div>
+            <div>
+              <span class="text-base-content/50 block text-[10px]">Liquidation Trigger:</span>
+              <span id="metricClosestPrice" class="font-mono font-semibold text-warning truncate block">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Multi-Chain Maturity Matrix Card -->
       <div class="card bg-base-100 border border-base-content/10 shadow-sm">
         <div class="card-body p-4 sm:p-5">
@@ -246,10 +298,13 @@
       <!-- Monitored Positions Card -->
       <div class="card bg-base-100 border border-base-content/10 shadow-sm">
         <div class="card-body p-4 sm:p-5">
-          <div class="flex justify-between items-center mb-3">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
             <div>
-              <h3 class="card-title text-xs sm:text-sm font-bold uppercase tracking-wider">Active Monitored Positions</h3>
-              <p class="text-[11px] text-base-content/60">Live borrowers tracked across Moonwell Base cToken markets</p>
+              <div class="flex items-center gap-2">
+                <h3 class="card-title text-xs sm:text-sm font-bold uppercase tracking-wider">Active Monitored Positions</h3>
+                <span id="posTableCountBadge" class="badge badge-primary badge-sm font-mono font-bold">0</span>
+              </div>
+              <p class="text-[11px] text-base-content/60">Pre-computed liquidation price index with zero-latency hot/cold tiering</p>
             </div>
             <div class="flex items-center gap-2">
               <button id="btnEvaluate" onclick="triggerManualEvaluation()" class="btn btn-primary btn-xs font-semibold gap-1">
@@ -261,23 +316,70 @@
             </div>
           </div>
 
+          <!-- Filters & Search Toolbar -->
+          <div class="bg-base-200/50 p-2.5 rounded-lg border border-base-content/5 flex flex-col sm:flex-row gap-2 justify-between items-center mb-3">
+            <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <!-- Search -->
+              <input id="posSearchInput" type="text" placeholder="Search address, symbol..." class="input input-xs input-bordered w-full sm:w-56 text-xs" oninput="debouncePosSearch()"/>
+              
+              <!-- Chain Filter -->
+              <select id="posChainSelect" class="select select-xs select-bordered text-xs" onchange="changePosFilter()">
+                <option value="ALL">All Chains</option>
+                <option value="EVM">EVM (Base)</option>
+                <option value="SOLANA">Solana</option>
+                <option value="SUI">Sui</option>
+              </select>
+
+              <!-- Tier Filter -->
+              <select id="posTierSelect" class="select select-xs select-bordered text-xs" onchange="changePosFilter()">
+                <option value="ALL">All Tiers</option>
+                <option value="HOT">🔥 HOT (HF ≤ 1.10)</option>
+                <option value="WARM">⚠️ WARM (1.10 < HF ≤ 1.30)</option>
+                <option value="COLD">❄️ COLD (HF > 1.30)</option>
+              </select>
+            </div>
+
+            <!-- Page Size -->
+            <div class="flex items-center gap-2 text-xs text-base-content/60 self-end sm:self-center">
+              <span>Per page:</span>
+              <select id="posPageSizeSelect" class="select select-xs select-bordered" onchange="changePosPageSize(this.value)">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Positions Table -->
           <div class="overflow-x-auto">
             <table class="table table-zebra table-xs sm:table-sm w-full">
               <thead>
-                <tr class="text-base-content/70">
-                  <th>Protocol</th>
-                  <th>Borrower Account</th>
-                  <th>Debt Market</th>
-                  <th>Collateral Market</th>
+                <tr class="text-base-content/70 text-[11px]">
+                  <th>Chain & Protocol</th>
+                  <th>Borrower Account / Obligation</th>
+                  <th>Debt Asset</th>
+                  <th>Collateral Asset</th>
+                  <th>Liq. Price (P_liq)</th>
                   <th>Health Factor</th>
+                  <th>Tier</th>
                   <th>Status</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody id="positionsTableBody">
-                <tr><td colspan="7" class="text-center py-4 text-base-content/50">Scanning Moonwell lending markets on Base...</td></tr>
+                <tr><td colspan="9" class="text-center py-4 text-base-content/50">Loading indexed open debt positions...</td></tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Pagination Bar -->
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-2 pt-3 border-t border-base-content/10 text-xs text-base-content/70">
+            <div id="posPaginationInfo">Showing 0 to 0 of 0 positions</div>
+            <div class="join">
+              <button id="posBtnPrev" onclick="changePosPage(-1)" class="join-item btn btn-xs btn-outline">« Prev</button>
+              <button id="posBtnPageNumber" class="join-item btn btn-xs btn-outline cursor-default">Page 1 of 1</button>
+              <button id="posBtnNext" onclick="changePosPage(1)" class="join-item btn btn-xs btn-outline">Next »</button>
+            </div>
           </div>
         </div>
       </div>
@@ -469,6 +571,7 @@
           <div class="flex items-center gap-2">
             <span class="badge badge-primary badge-sm font-bold" id="posModalProtocol">Moonwell Base</span>
             <span class="badge badge-outline badge-sm" id="posModalChain">Base (EVM)</span>
+            <span class="badge badge-sm font-bold" id="posModalTierBadge">HOT 🔥</span>
           </div>
           <h3 class="font-bold text-sm sm:text-base font-mono mt-1 text-base-content break-all" id="posModalAccount"></h3>
         </div>
@@ -485,6 +588,21 @@
           </div>
         </div>
         <div id="posModalEligibilityText" class="text-xs sm:text-right max-w-sm"></div>
+      </div>
+
+      <!-- Inverted Index & Liquidation Threshold Card -->
+      <div class="bg-base-200/60 p-3 rounded-lg border border-base-content/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs">
+        <div>
+          <span class="text-base-content/60 block text-[10px] uppercase font-semibold">Liquidation Price (P_liq):</span>
+          <span id="posModalLiqPrice" class="font-bold text-sm font-mono text-warning">--</span>
+        </div>
+        <div>
+          <span class="text-base-content/60 block text-[10px] uppercase font-semibold">Distance to Trigger:</span>
+          <span id="posModalLiqDist" class="font-bold font-mono">--</span>
+        </div>
+        <button onclick="openGlossaryTerm('LIQUIDATION_PRICE')" class="btn btn-ghost btn-xs text-info gap-1 self-end sm:self-center">
+          <span>ⓘ</span><span>How P_liq Works</span>
+        </button>
       </div>
 
       <!-- Markets Grid -->
@@ -751,6 +869,34 @@
     // System Glossary Database with Plain English Explanations
     const GLOSSARY_DATA = [
       {
+        category: "Zero-Latency Monitoring & Tiering",
+        term: "MONITORING_TIER_HOT",
+        badgeClass: "badge-error",
+        summary: "Critical monitoring tier for accounts on the verge of liquidation (Health Factor <= 1.10).",
+        explanation: "Accounts in this tier require less than a 9.1% price drop to become liquidatable. Evaluated block-by-block at sequencer latency (~2s on Base) to ensure immediate capture the instant an oracle update lands."
+      },
+      {
+        category: "Zero-Latency Monitoring & Tiering",
+        term: "MONITORING_TIER_WARM",
+        badgeClass: "badge-warning",
+        summary: "Elevated risk monitoring tier (1.10 < Health Factor <= 1.30).",
+        explanation: "Accounts in this tier are within 9% to 23% of liquidation price. Monitored periodically without congesting block-by-block RPC traffic."
+      },
+      {
+        category: "Zero-Latency Monitoring & Tiering",
+        term: "MONITORING_TIER_COLD",
+        badgeClass: "badge-neutral",
+        summary: "Safe tier (Health Factor > 1.30). Zero per-block RPC queries generated.",
+        explanation: "Accounts in this tier generate zero per-block RPC traffic to avoid RPC exhaustion and rate limits. They reside in an in-memory Inverted Index, indexed by collateral asset, and awaken instantly if a market-wide oracle price drop occurs."
+      },
+      {
+        category: "Zero-Latency Monitoring & Tiering",
+        term: "LIQUIDATION_PRICE",
+        badgeClass: "badge-warning",
+        summary: "Pre-calculated collateral price threshold where shortfall occurs (HF = 1.000).",
+        explanation: "Calculated via P_liq = P_curr / HF. When an oracle feed publishes a price at or below this threshold, the position breaches maintenance margin and can be liquidated for bonus collateral."
+      },
+      {
         category: "Execution Status Codes",
         term: "SUCCESS",
         badgeClass: "badge-success",
@@ -927,6 +1073,28 @@
 
       document.getElementById('posModalProtocol').textContent = p.protocol;
       document.getElementById('posModalAccount').textContent = p.account_id;
+      document.getElementById('posModalChain').textContent = p.chain;
+
+      const tierBadge = document.getElementById('posModalTierBadge');
+      if (tierBadge) {
+        tierBadge.textContent = `${p.tier || 'COLD'} ${p.tier === 'HOT' ? '🔥' : (p.tier === 'WARM' ? '⚠️' : '❄️')}`;
+        tierBadge.className = `badge badge-sm font-bold ${p.tier === 'HOT' ? 'badge-error' : (p.tier === 'WARM' ? 'badge-warning' : 'badge-neutral')}`;
+      }
+
+      const liqPrice = document.getElementById('posModalLiqPrice');
+      if (liqPrice) {
+        liqPrice.textContent = `$${parseFloat(p.liquidation_price_usd || 0).toFixed(2)} (${p.collateral_symbol || 'Collateral'})`;
+      }
+      const liqDist = document.getElementById('posModalLiqDist');
+      if (liqDist) {
+        liqDist.textContent = `-${parseFloat(p.distance_to_liq_pct || 0).toFixed(2)}% drop to trigger`;
+        liqDist.className = `font-bold font-mono ${parseFloat(p.distance_to_liq_pct || 0) < 10 ? 'text-error' : 'text-base-content/80'}`;
+      }
+
+      const debtSymBadge = document.getElementById('posModalDebtSymbol');
+      if (debtSymBadge) debtSymBadge.textContent = p.debt_symbol || 'DEBT';
+      const colSymBadge = document.getElementById('posModalCollateralSymbol');
+      if (colSymBadge) colSymBadge.textContent = p.collateral_symbol || 'COLLATERAL';
       
       const hf = parseFloat(p.health_factor);
       const isEligible = hf < 1.0;
@@ -1097,6 +1265,158 @@
       renderGlossaryList(matched);
     }
 
+    // Positions Filtering & Pagination State
+    let _posFilter = {
+      chain: 'ALL',
+      tier: 'ALL',
+      search: '',
+      page: 1,
+      pageSize: 10
+    };
+    let _posPagination = {
+      total: 0,
+      page: 1,
+      totalPages: 1
+    };
+    let _searchDebounceTimer = null;
+
+    function debouncePosSearch() {
+      clearTimeout(_searchDebounceTimer);
+      _searchDebounceTimer = setTimeout(() => {
+        _posFilter.search = document.getElementById('posSearchInput').value;
+        _posFilter.page = 1;
+        refreshPositionsOnly();
+      }, 250);
+    }
+
+    function changePosFilter() {
+      _posFilter.chain = document.getElementById('posChainSelect').value;
+      _posFilter.tier = document.getElementById('posTierSelect').value;
+      _posFilter.page = 1;
+      refreshPositionsOnly();
+    }
+
+    function filterByTier(tierName) {
+      _posFilter.tier = tierName;
+      const select = document.getElementById('posTierSelect');
+      if (select) select.value = tierName;
+      _posFilter.page = 1;
+      switchTab('positions');
+      refreshPositionsOnly();
+    }
+
+    function changePosPageSize(val) {
+      _posFilter.pageSize = parseInt(val) || 10;
+      _posFilter.page = 1;
+      refreshPositionsOnly();
+    }
+
+    function changePosPage(delta) {
+      const newPage = _posFilter.page + delta;
+      if (newPage >= 1 && newPage <= _posPagination.totalPages) {
+        _posFilter.page = newPage;
+        refreshPositionsOnly();
+      }
+    }
+
+    async function refreshPositionsOnly() {
+      try {
+        const queryUrl = `/api/v1/positions?chain=${_posFilter.chain}&tier=${_posFilter.tier}&search=${encodeURIComponent(_posFilter.search)}&page=${_posFilter.page}&page_size=${_posFilter.pageSize}`;
+        const posRes = await fetch(queryUrl).then(r => r.json());
+        renderPositionsFromResponse(posRes);
+      } catch (e) {
+        console.error("Failed to refresh positions:", e);
+      }
+    }
+
+    function renderPositionsFromResponse(posRes) {
+      const items = posRes.items || (Array.isArray(posRes) ? posRes : []);
+      _latestData.pos = items;
+
+      _posPagination.total = posRes.total !== undefined ? posRes.total : items.length;
+      _posPagination.page = posRes.page || 1;
+      _posPagination.totalPages = posRes.total_pages || 1;
+
+      // Update badge count
+      const badgeCount = document.getElementById('posTableCountBadge');
+      if (badgeCount) badgeCount.textContent = `${_posPagination.total}`;
+
+      // Update pagination bar
+      const start = _posPagination.total === 0 ? 0 : (_posPagination.page - 1) * _posFilter.pageSize + 1;
+      const end = Math.min(_posPagination.total, _posPagination.page * _posFilter.pageSize);
+      const pagInfo = document.getElementById('posPaginationInfo');
+      if (pagInfo) pagInfo.textContent = `Showing ${start} to ${end} of ${_posPagination.total} positions`;
+      
+      const pageBtn = document.getElementById('posBtnPageNumber');
+      if (pageBtn) pageBtn.textContent = `Page ${_posPagination.page} of ${_posPagination.totalPages}`;
+      
+      const btnPrev = document.getElementById('posBtnPrev');
+      if (btnPrev) btnPrev.disabled = _posPagination.page <= 1;
+      
+      const btnNext = document.getElementById('posBtnNext');
+      if (btnNext) btnNext.disabled = _posPagination.page >= _posPagination.totalPages;
+
+      // Render rows
+      const posTbody = document.getElementById('positionsTableBody');
+      if (!items || items.length === 0) {
+        posTbody.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-base-content/50">No open debt positions match the selected filters.</td></tr>`;
+        return;
+      }
+
+      posTbody.innerHTML = items.map(p => {
+        const hf = parseFloat(p.health_factor || 0);
+        const isEligible = hf < 1.0;
+        const tier = p.tier || 'COLD';
+        const tierBadgeClass = tier === 'HOT' ? 'badge-error font-bold' : (tier === 'WARM' ? 'badge-warning font-semibold' : 'badge-neutral text-base-content/70');
+        const tierIcon = tier === 'HOT' ? '🔥' : (tier === 'WARM' ? '⚠️' : '❄️');
+        const dist = parseFloat(p.distance_to_liq_pct || 0);
+        const liqPrice = parseFloat(p.liquidation_price_usd || 0);
+
+        return `
+          <tr class="hover text-xs">
+            <td>
+              <div class="flex items-center gap-1.5">
+                <span class="badge badge-outline badge-xs font-bold">${p.chain}</span>
+                <span class="font-semibold text-primary text-[11px]">${p.protocol}</span>
+              </div>
+            </td>
+            <td class="font-mono text-[11px] text-base-content/80">
+              <span title="${p.account_id}">${p.account_id.substring(0, 6)}...${p.account_id.substring(p.account_id.length - 4)}</span>
+            </td>
+            <td>
+              <span class="badge badge-ghost badge-xs font-bold text-error/90">${p.debt_symbol || 'DEBT'}</span>
+            </td>
+            <td>
+              <span class="badge badge-ghost badge-xs font-bold text-success/90">${p.collateral_symbol || 'COLLATERAL'}</span>
+            </td>
+            <td>
+              <div class="flex flex-col">
+                <span class="font-mono font-bold text-warning text-xs">$${liqPrice.toFixed(2)}</span>
+                <span class="text-[10px] ${dist < 10 ? 'text-error font-semibold' : 'text-base-content/50'}">-${dist.toFixed(2)}% drop</span>
+              </div>
+            </td>
+            <td class="font-bold text-sm ${isEligible ? 'text-error font-extrabold animate-pulse' : (hf < 1.15 ? 'text-warning' : 'text-success')}">
+              ${hf.toFixed(4)}
+            </td>
+            <td>
+              <button onclick="openGlossaryTerm('MONITORING_TIER_${tier}')" class="badge ${tierBadgeClass} badge-xs gap-1 cursor-pointer hover:brightness-110">
+                <span>${tierIcon} ${tier}</span>
+                <span class="text-[9px]">ⓘ</span>
+              </button>
+            </td>
+            <td>
+              ${isEligible 
+                ? `<button onclick="openGlossaryTerm('HEALTH_FACTOR_HEALTHY')" class="badge badge-error badge-xs font-bold gap-1 cursor-pointer hover:brightness-110"><span>ELIGIBLE</span><span>ⓘ</span></button>` 
+                : `<button onclick="openGlossaryTerm('HEALTH_FACTOR_HEALTHY')" class="badge badge-success badge-xs gap-1 cursor-pointer hover:brightness-110"><span>HEALTHY</span><span>ⓘ</span></button>`}
+            </td>
+            <td>
+              <button onclick="viewPositionDetails('${p.account_id}')" class="btn btn-outline btn-primary btn-xs font-semibold">Details</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
     function evaluateFromModal() {
       document.getElementById('positionDetailModal').close();
       triggerManualEvaluation();
@@ -1105,17 +1425,18 @@
     // Refresh data from API
     async function refreshData() {
       try {
+        const posQueryUrl = `/api/v1/positions?chain=${_posFilter.chain}&tier=${_posFilter.tier}&search=${encodeURIComponent(_posFilter.search)}&page=${_posFilter.page}&page_size=${_posFilter.pageSize}`;
         const [statusRes, metricsRes, posRes, oppsRes, attRes, rejRes, audRes] = await Promise.all([
           fetch('/api/v1/status').then(r => r.json()),
           fetch('/api/v1/metrics').then(r => r.json()),
-          fetch('/api/v1/positions').then(r => r.json()),
+          fetch(posQueryUrl).then(r => r.json()),
           fetch('/api/v1/opportunities').then(r => r.json()),
           fetch('/api/v1/attempts').then(r => r.json()),
           fetch('/api/v1/rejections').then(r => r.json()),
           fetch('/api/v1/audit/logs').then(r => r.json()).catch(() => [])
         ]);
 
-        _latestData = { pos: posRes || [], opps: oppsRes || [], att: attRes || [], rej: rejRes || [] };
+        _latestData = { pos: posRes.items || (Array.isArray(posRes) ? posRes : []), opps: oppsRes || [], att: attRes || [], rej: rejRes || [] };
 
         // Status badges
         const modeBadge = document.getElementById('headerModeBadge');
@@ -1143,6 +1464,41 @@
         document.getElementById('metricCaptureRate').textContent = `Capture: ${capRatePct}% (${compAtt} front-run)`;
         document.getElementById('metricOracleLag').textContent = `${statusRes.oracle_watcher.lag_seconds}s`;
 
+        // Inverted Index & Shortfall Radar Summaries
+        const idxSummary = metricsRes.inverted_index || posRes.summary || {};
+        const idxTotal = document.getElementById('metricIndexTotal');
+        if (idxTotal) idxTotal.textContent = idxSummary.total_monitored || posRes.total || 0;
+        
+        const idxHot = document.getElementById('metricIndexHot');
+        if (idxHot) idxHot.textContent = idxSummary.hot_count || 0;
+        
+        const idxWarm = document.getElementById('metricIndexWarm');
+        if (idxWarm) idxWarm.textContent = idxSummary.warm_count || 0;
+        
+        const idxCold = document.getElementById('metricIndexCold');
+        if (idxCold) idxCold.textContent = idxSummary.cold_count || 0;
+        
+        const idxSub = document.getElementById('metricIndexSub');
+        if (idxSub) idxSub.textContent = `Collateral assets indexed: ${idxSummary.assets_indexed || 3} (0 per-block RPC for Cold tier)`;
+
+        const closest = idxSummary.closest_to_shortfall;
+        if (closest) {
+          const closestHf = parseFloat(closest.health_factor || 1.0);
+          const elClosestHf = document.getElementById('metricClosestHf');
+          if (elClosestHf) {
+            elClosestHf.textContent = closestHf.toFixed(4);
+            elClosestHf.className = `text-xl sm:text-2xl font-bold font-mono ${closestHf < 1.0 ? 'text-error animate-pulse' : (closestHf < 1.10 ? 'text-error' : 'text-warning')}`;
+          }
+          const elClosestDist = document.getElementById('metricClosestDist');
+          if (elClosestDist) elClosestDist.textContent = `-${parseFloat(closest.distance_to_liq_pct || 0).toFixed(2)}% to Liq`;
+          
+          const elClosestAcc = document.getElementById('metricClosestAccount');
+          if (elClosestAcc) elClosestAcc.textContent = `${closest.protocol} (${closest.account_id.substring(0, 6)}...${closest.account_id.substring(closest.account_id.length - 4)})`;
+          
+          const elClosestPrice = document.getElementById('metricClosestPrice');
+          if (elClosestPrice) elClosestPrice.textContent = `${closest.collateral_symbol} @ $${parseFloat(closest.liquidation_price_usd || 0).toFixed(2)}`;
+        }
+
         // Chain Head Blocks
         if (statusRes.chain_health) {
           if (statusRes.chain_health.EVM) document.getElementById('baseHeadBlock').textContent = `Head: #${statusRes.chain_health.EVM.head}`;
@@ -1152,30 +1508,7 @@
         }
 
         // Render Positions
-        const posTbody = document.getElementById('positionsTableBody');
-        if (posRes && posRes.length > 0) {
-          posTbody.innerHTML = posRes.map(p => {
-            const hf = parseFloat(p.health_factor);
-            const isEligible = hf < 1.0;
-            return `
-              <tr class="hover">
-                <td class="font-semibold text-primary">${p.protocol}</td>
-                <td class="font-mono text-xs text-base-content/80">${p.account_id.substring(0, 8)}...${p.account_id.substring(p.account_id.length - 4)}</td>
-                <td><span class="badge badge-neutral badge-xs">${p.debt_asset.substring(0, 8)}...</span></td>
-                <td><span class="badge badge-neutral badge-xs">${p.collateral_asset.substring(0, 8)}...</span></td>
-                <td class="font-bold ${isEligible ? 'text-error' : 'text-success'}">${hf.toFixed(4)}</td>
-                <td>
-                  ${isEligible 
-                    ? `<button onclick="openGlossaryTerm('HEALTH_FACTOR_HEALTHY')" class="badge badge-error badge-xs font-bold gap-1 cursor-pointer hover:brightness-110"><span>ELIGIBLE</span><span>ⓘ</span></button>` 
-                    : `<button onclick="openGlossaryTerm('HEALTH_FACTOR_HEALTHY')" class="badge badge-success badge-xs gap-1 cursor-pointer hover:brightness-110"><span>HEALTHY</span><span>ⓘ</span></button>`}
-                </td>
-                <td>
-                  <button onclick="viewPositionDetails('${p.account_id}')" class="btn btn-outline btn-primary btn-xs font-semibold">Details</button>
-                </td>
-              </tr>
-            `;
-          }).join('');
-        }
+        renderPositionsFromResponse(posRes);
 
         // Render Opportunities
         const oppsTbody = document.getElementById('oppsTableBody');

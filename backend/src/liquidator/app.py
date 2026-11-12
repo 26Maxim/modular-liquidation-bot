@@ -17,7 +17,8 @@ from liquidator.chains.evm_adapter import EVMChainAdapter
 from liquidator.chains.solana_adapter import SolanaChainAdapter
 from liquidator.chains.sui_adapter import SuiChainAdapter
 from liquidator.core.config import AppSettings
-from liquidator.core.models import ChainType, RiskParameters
+from liquidator.core.models import BorrowerPosition, ChainType, RiskParameters
+from liquidator.discovery.inverted_index import InvertedIndexEngine
 from liquidator.discovery.kamino_daemon import KaminoDiscoveryDaemon
 from liquidator.discovery.oracle_watcher import OracleUpdateWatcher
 from liquidator.discovery.scallop_daemon import ScallopDiscoveryDaemon
@@ -120,7 +121,10 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
         w3=evm_adapter.w3,
     )
 
-    # 11. Background Real-Time Block & Event Streaming Scanner
+    # 11. Inverted Index Engine (Zero-Latency Liquidation Thresholds & Hot/Cold Tiering)
+    inverted_index = InvertedIndexEngine()
+
+    # 12. Background Real-Time Block & Event Streaming Scanner
     scanner = PositionDiscoveryScanner(
         repository=repository,
         rpc_url=settings.BASE_RPC_URL,
@@ -134,26 +138,60 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
         funding_adapter=funding_adapter,
         route_adapter=route_adapter,
         flash_liquidator_address=settings.FLASH_LIQUIDATOR_ADDRESS,
+        inverted_index=inverted_index,
     )
 
-    # 12. Solana & Sui Live Discovery Daemons
+    # 13. Solana & Sui Live Discovery Daemons
     kamino_daemon = KaminoDiscoveryDaemon(
         repository=repository,
         rpc_url=settings.SOLANA_RPC_URL,
         poll_interval=15.0,
         event_sink=event_hub,
+        inverted_index=inverted_index,
     )
     scallop_daemon = ScallopDiscoveryDaemon(
         repository=repository,
         graphql_endpoint=settings.SUI_GRAPHQL_URL,
         poll_interval=20.0,
         event_sink=event_hub,
+        inverted_index=inverted_index,
     )
+
+    # Connect Oracle Watcher to Inverted Index for zero-latency price-drop triggering
+    async def on_oracle_update(update):
+        breached = inverted_index.update_price(update.asset_address, update.price_usd)
+        for pos in breached:
+            if scanner and pos.chain == ChainType.EVM:
+                asyncio.create_task(scanner._evaluate_shortfall_position(pos, pos.block_number))
+
+    oracle_watcher.on_price_update = on_oracle_update
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         # Startup: initialize database tables
         await db.init_models()
+
+        # Seed Inverted Index with persisted positions
+        stored_positions = await repository.get_all_positions()
+        for p in stored_positions:
+            try:
+                pos_obj = BorrowerPosition(
+                    id=p.id,
+                    chain=ChainType(p.chain),
+                    protocol=p.protocol,
+                    account_id=p.account_id,
+                    debt_asset=p.debt_asset,
+                    collateral_asset=p.collateral_asset,
+                    debt_amount_raw=int(p.debt_amount_raw),
+                    collateral_amount_raw=int(p.collateral_amount_raw),
+                    health_factor=p.health_factor,
+                    block_number=p.block_number,
+                    last_updated=p.last_updated,
+                )
+                inverted_index.index_position(pos_obj)
+            except Exception:
+                pass
+
         scanner_task = asyncio.create_task(scanner.start())
         oracle_task = asyncio.create_task(oracle_watcher.start_polling_loop(poll_interval=10.0))
         kamino_task = asyncio.create_task(kamino_daemon.start())
@@ -192,6 +230,7 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
         chain_adapters=chain_adapters,
         protocol_adapters=protocol_adapters,
         scanner=scanner,
+        inverted_index=inverted_index,
     )
     app.include_router(api_router)
 
@@ -241,5 +280,6 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
     app.state.route_adapter = route_adapter
     app.state.kamino_daemon = kamino_daemon
     app.state.scallop_daemon = scallop_daemon
+    app.state.inverted_index = inverted_index
 
     return app
