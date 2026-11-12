@@ -74,7 +74,10 @@ class MoonwellAdapter(LendingProtocolAdapter):
           expected_collateral_raw = norm_to_raw(expected_collateral_norm, collateral_decimals)
         """
         # Apply protocol close factor
-        total_debt_norm = raw_to_norm(position.debt_amount_raw, debt_token.decimals)
+        debt_raw_int = int(position.debt_amount_raw)
+        collateral_raw_int = int(position.collateral_amount_raw)
+
+        total_debt_norm = raw_to_norm(debt_raw_int, debt_token.decimals)
         repay_norm = total_debt_norm * self.close_factor
         repay_raw = norm_to_raw(repay_norm, debt_token.decimals)
 
@@ -92,8 +95,8 @@ class MoonwellAdapter(LendingProtocolAdapter):
         expected_collateral_raw = norm_to_raw(expected_collateral_norm, collateral_token.decimals)
 
         # Cap at available collateral in borrower position
-        if expected_collateral_raw > position.collateral_amount_raw:
-            expected_collateral_raw = position.collateral_amount_raw
+        if expected_collateral_raw > collateral_raw_int:
+            expected_collateral_raw = collateral_raw_int
             # Re-scale allowable repay to match actual collateral seized
             actual_seize_usd = raw_to_norm(expected_collateral_raw, collateral_token.decimals) * collateral_token.price_usd
             allowed_repay_usd = actual_seize_usd / self.liquidation_incentive

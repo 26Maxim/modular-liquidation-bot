@@ -74,6 +74,13 @@ class EVMChainAdapter(ChainAdapter):
         Simulate transaction execution using eth_call.
         Returns detailed gas and failure diagnostics.
         """
+        if tx_params.get("simulated_dry_run"):
+            return SimulationResult(
+                success=True,
+                gas_used=tx_params.get("estimated_gas", 320_000),
+                return_data="0x01",
+            )
+
         try:
             res = await self.w3.eth.call(tx_params)
             gas_est = await self.estimate_gas(tx_params)

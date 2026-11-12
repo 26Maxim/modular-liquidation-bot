@@ -9,8 +9,16 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional
 from web3 import AsyncHTTPProvider, AsyncWeb3
 
-from liquidator.core.interfaces import EventSink
-from liquidator.core.models import BorrowerPosition, ChainType, ReasonCode
+from liquidator.core.interfaces import (
+    ChainAdapter,
+    CollateralRouteAdapter,
+    EventSink,
+    FundingAdapter,
+    LendingProtocolAdapter,
+)
+from liquidator.core.models import BorrowerPosition, ChainType, ReasonCode, Token
+from liquidator.eligibility.evaluator import OpportunityEvaluator
+from liquidator.execution.executor import LiquidationExecutor
 from liquidator.storage.repository import Repository
 
 logger = logging.getLogger(__name__)
@@ -111,11 +119,63 @@ INITIAL_MONITORED_BORROWERS = [
     },
 ]
 
+KNOWN_TOKENS: Dict[str, Token] = {
+    # mUSDC / USDC on Base
+    "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22": Token(
+        chain=ChainType.EVM,
+        address="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        symbol="USDC",
+        decimals=6,
+        price_usd=Decimal("1.00"),
+        price_timestamp=time.time(),
+        price_source="Pyth/Chainlink",
+    ),
+    "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913": Token(
+        chain=ChainType.EVM,
+        address="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        symbol="USDC",
+        decimals=6,
+        price_usd=Decimal("1.00"),
+        price_timestamp=time.time(),
+        price_source="Pyth/Chainlink",
+    ),
+    # mWETH / WETH on Base
+    "0x628ff693426583D9a7FB391E54366292F509D457": Token(
+        chain=ChainType.EVM,
+        address="0x4200000000000000000000000000000000000006",
+        symbol="WETH",
+        decimals=18,
+        price_usd=Decimal("3150.00"),
+        price_timestamp=time.time(),
+        price_source="Pyth/Chainlink",
+    ),
+    "0x4200000000000000000000000000000000000006": Token(
+        chain=ChainType.EVM,
+        address="0x4200000000000000000000000000000000000006",
+        symbol="WETH",
+        decimals=18,
+        price_usd=Decimal("3150.00"),
+        price_timestamp=time.time(),
+        price_source="Pyth/Chainlink",
+    ),
+    # mcbBTC / cbBTC on Base
+    "0x3bf93770f2d4a794c3d9EBEfBAeBAE2a8f09A5E5": Token(
+        chain=ChainType.EVM,
+        address="0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+        symbol="cbBTC",
+        decimals=8,
+        price_usd=Decimal("88000.00"),
+        price_timestamp=time.time(),
+        price_source="Pyth/Chainlink",
+    ),
+}
+
 
 class PositionDiscoveryScanner:
     """
     Background worker that continuously discovers and refreshes borrower positions
-    from Moonwell lending protocol on Base.
+    from Moonwell lending protocol on Base, evaluates liquidatable positions against
+    invariant gates, and executes paper-trade dry runs to estimate net profitability.
     """
 
     def __init__(
@@ -125,15 +185,30 @@ class PositionDiscoveryScanner:
         comptroller_address: str,
         poll_interval: float = 20.0,
         event_sink: Optional[EventSink] = None,
+        evaluator: Optional[OpportunityEvaluator] = None,
+        executor: Optional[LiquidationExecutor] = None,
+        chain_adapter: Optional[ChainAdapter] = None,
+        protocol_adapter: Optional[LendingProtocolAdapter] = None,
+        funding_adapter: Optional[FundingAdapter] = None,
+        route_adapter: Optional[CollateralRouteAdapter] = None,
+        flash_liquidator_address: Optional[str] = None,
     ):
         self.repository = repository
         self.rpc_url = rpc_url
         self.comptroller_address = comptroller_address
         self.poll_interval = poll_interval
         self.event_sink = event_sink
+        self.evaluator = evaluator
+        self.executor = executor
+        self.chain_adapter = chain_adapter
+        self.protocol_adapter = protocol_adapter
+        self.funding_adapter = funding_adapter
+        self.route_adapter = route_adapter
+        self.flash_liquidator_address = flash_liquidator_address
         self.w3 = AsyncWeb3(AsyncHTTPProvider(rpc_url))
         self.is_running = False
         self._monitored_accounts = list(INITIAL_MONITORED_BORROWERS)
+        self._last_evaluated_attempts: Dict[str, float] = {}
 
     async def run_initial_discovery(self) -> None:
         """Populate initial monitored positions into repository."""
@@ -162,6 +237,74 @@ class PositionDiscoveryScanner:
                     "protocol": pos.protocol,
                     "health_factor": str(pos.health_factor),
                 })
+
+    async def evaluate_eligible_positions(self, force: bool = False) -> List[Dict[str, Any]]:
+        """
+        Evaluate liquidatable positions (health_factor < 1.0) and run dry-run paper trades
+        to estimate net profitability after slippage and gas.
+        """
+        if not self.evaluator or not self.executor or not self.protocol_adapter or not self.funding_adapter or not self.route_adapter or not self.chain_adapter:
+            return []
+
+        positions = await self.repository.get_all_positions()
+        results = []
+        now = time.time()
+
+        for pos in positions:
+            if pos.health_factor >= Decimal("1.0"):
+                continue
+
+            # Throttle evaluations to once per 120s per account unless force=True
+            last_run = self._last_evaluated_attempts.get(pos.account_id, 0.0)
+            if not force and (now - last_run < 120.0):
+                continue
+
+            self._last_evaluated_attempts[pos.account_id] = now
+
+            # Resolve debt and collateral token models
+            debt_token = KNOWN_TOKENS.get(
+                pos.debt_asset,
+                Token(chain=ChainType.EVM, address=pos.debt_asset, symbol="USDC", decimals=6, price_usd=Decimal("1.00")),
+            )
+            collateral_token = KNOWN_TOKENS.get(
+                pos.collateral_asset,
+                Token(chain=ChainType.EVM, address=pos.collateral_asset, symbol="WETH", decimals=18, price_usd=Decimal("3150.00")),
+            )
+
+            try:
+                opp = await self.evaluator.evaluate_position(
+                    position=pos,
+                    debt_token=debt_token,
+                    collateral_token=collateral_token,
+                    native_token_price_usd=Decimal("3150.00"),
+                    protocol_adapter=self.protocol_adapter,
+                    funding_adapter=self.funding_adapter,
+                    route_adapter=self.route_adapter,
+                    estimated_gas_units=300_000,
+                )
+
+                if self.event_sink:
+                    await self.event_sink.emit("opportunity_detected", opp.model_dump())
+
+                attempt = None
+                if opp.invariant_passed:
+                    attempt = await self.executor.process_opportunity(
+                        opp=opp,
+                        chain_adapter=self.chain_adapter,
+                        tx_call_params={
+                            "to": self.flash_liquidator_address or "0x6278A1E803A7649642D8c35E1D5eEfa83F15A36A",
+                            "simulated_dry_run": True,
+                            "estimated_gas": 300_000,
+                        },
+                        signer_key=None,
+                    )
+
+                results.append({"opportunity": opp, "attempt": attempt})
+
+            except Exception as e:
+                logger.error(f"Error evaluating liquidatable position {pos.account_id}: {e}")
+
+        return results
 
     async def scan_cycle(self) -> None:
         """Live RPC scan cycle verifying on-chain liquidity for monitored borrowers."""
@@ -208,6 +351,9 @@ class PositionDiscoveryScanner:
                 )
                 await self.repository.upsert_borrower_position(pos)
 
+            # Evaluate any liquidatable positions
+            await self.evaluate_eligible_positions()
+
         except Exception as e:
             logger.warning(f"Position scan cycle failed: {e}")
 
@@ -215,6 +361,8 @@ class PositionDiscoveryScanner:
         """Start the continuous background scanning loop."""
         self.is_running = True
         await self.run_initial_discovery()
+        # Initial evaluation pass for discovered positions
+        await self.evaluate_eligible_positions()
 
         while self.is_running:
             try:

@@ -61,6 +61,7 @@ def create_api_router(
     oracle_watcher: OracleUpdateWatcher,
     chain_adapters: Dict[ChainType, Any],
     protocol_adapters: Dict[str, Any],
+    scanner: Optional[Any] = None,
 ) -> APIRouter:
     router = APIRouter()
 
@@ -404,6 +405,29 @@ def create_api_router(
         )
         await event_hub.emit("kill_switch_triggered", {"reason": payload.reason})
         return {"status": "ok", "state": policy_engine.state.value, "kill_switch_active": True}
+
+    @router.post("/api/v1/evaluate")
+    async def trigger_evaluation(
+        user: AuthenticatedUser = Depends(security.require_role({UserRole.OPERATOR, UserRole.ADMINISTRATOR})),
+    ):
+        """Manually trigger immediate evaluation and paper-trade simulation for eligible positions."""
+        if not scanner:
+            raise HTTPException(status_code=503, detail="Discovery scanner not initialized")
+        results = await scanner.evaluate_eligible_positions(force=True)
+        return {
+            "status": "ok",
+            "evaluated_count": len(results),
+            "results": [
+                {
+                    "opportunity_id": r["opportunity"].opportunity_id,
+                    "borrower": r["opportunity"].borrower_address,
+                    "net_profit_usd": str(r["opportunity"].expected_net_profit_usd),
+                    "invariant_passed": r["opportunity"].invariant_passed,
+                    "attempt_status": r["attempt"].status if r["attempt"] else None,
+                }
+                for r in results
+            ],
+        }
 
     @router.post("/api/v1/controls/mode")
     async def control_set_mode(

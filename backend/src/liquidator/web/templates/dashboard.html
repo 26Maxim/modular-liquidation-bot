@@ -208,7 +208,14 @@
               <h3 class="card-title text-xs sm:text-sm font-bold uppercase tracking-wider">Active Monitored Positions</h3>
               <p class="text-[11px] text-base-content/60">Live borrowers tracked across Moonwell Base cToken markets</p>
             </div>
-            <button onclick="refreshData()" class="btn btn-ghost btn-xs">Refresh</button>
+            <div class="flex items-center gap-2">
+              <button id="btnEvaluate" onclick="triggerManualEvaluation()" class="btn btn-primary btn-xs font-semibold gap-1">
+                <span>⚡</span>
+                <span class="hidden sm:inline">Evaluate & Paper Trade</span>
+                <span class="sm:hidden">Evaluate</span>
+              </button>
+              <button onclick="refreshData()" class="btn btn-ghost btn-xs">Refresh</button>
+            </div>
           </div>
 
           <div class="overflow-x-auto">
@@ -561,9 +568,23 @@
       eventSource.onopen = () => { indicator.className = 'inline-block w-2 h-2 rounded-full bg-success animate-pulse'; };
       eventSource.onerror = () => { indicator.className = 'inline-block w-2 h-2 rounded-full bg-error'; };
       eventSource.addEventListener('position_updated', () => refreshData());
+      eventSource.addEventListener('opportunity_detected', () => refreshData());
       eventSource.addEventListener('dry_run_attempt_completed', () => refreshData());
       eventSource.addEventListener('live_attempt_finalized', () => refreshData());
       eventSource.addEventListener('kill_switch_triggered', () => refreshData());
+    }
+
+    async function triggerManualEvaluation() {
+      const btn = document.getElementById('btnEvaluate');
+      if (btn) btn.disabled = true;
+      try {
+        await fetch('/api/v1/evaluate', { method: 'POST' });
+        await refreshData();
+      } catch (err) {
+        console.error('Manual evaluation failed', err);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
     }
 
     async function controlAction(action) {

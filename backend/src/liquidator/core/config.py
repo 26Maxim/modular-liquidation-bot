@@ -65,6 +65,7 @@ class AppSettings(BaseSettings):
     UNISWAP_V3_ROUTER_ADDRESS: str = "0x2626664c2603336E57B271c5C0b26F421741e481"
     UNISWAP_V3_QUOTER_ADDRESS: str = "0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a"
     EXECUTOR_CONTRACT_ADDRESS: Optional[str] = None
+    FLASH_LIQUIDATOR_ADDRESS: Optional[str] = None
 
     # Credentials (Must be provided securely in live mode)
     SIGNER_PRIVATE_KEY: Optional[str] = None
