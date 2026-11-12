@@ -29,6 +29,7 @@ from liquidator.core.models import (
 from liquidator.eligibility.evaluator import OpportunityEvaluator
 from liquidator.execution.executor import LiquidationExecutor
 from liquidator.storage.repository import Repository
+from liquidator.discovery.inverted_index import DEFAULT_ASSET_PRICES
 
 logger = logging.getLogger(__name__)
 
@@ -375,17 +376,25 @@ class PositionDiscoveryScanner:
                 if not assets:
                     continue
 
-                # Query borrow balance stored
+                # Inspect assets entered: find principal debt market and principal collateral market
                 debt_market = None
                 max_borrow = 0
+                collateral_market = None
+                max_supply = 0
                 for a in assets:
                     c = self.w3.eth.contract(address=a, abi=CTOKEN_ABI)
                     b_bal = await c.functions.borrowBalanceStored(account_addr).call(
                         block_identifier=block_number
                     )
+                    s_bal = await c.functions.balanceOf(account_addr).call(
+                        block_identifier=block_number
+                    )
                     if b_bal > max_borrow:
                         max_borrow = b_bal
                         debt_market = a
+                    if s_bal > max_supply:
+                        max_supply = s_bal
+                        collateral_market = a
 
                 # If the borrow balance is zero, the account is not an active borrower
                 if max_borrow == 0:
@@ -393,12 +402,23 @@ class PositionDiscoveryScanner:
 
                 excess_usd = Decimal(excess_liq) / Decimal(10**18)
                 shortfall_usd = Decimal(shortfall) / Decimal(10**18)
-                borrow_usd = Decimal(max_borrow) / Decimal(10**6)
+
+                # Determine debt USD value using token decimals and oracle price
+                debt_info = DEFAULT_ASSET_PRICES.get(debt_market)
+                if debt_info:
+                    debt_sym, debt_price = debt_info
+                    dec = 6 if "USDC" in debt_sym or "EURC" in debt_sym else (8 if "BTC" in debt_sym else 18)
+                    borrow_tokens = Decimal(max_borrow) / Decimal(10**dec)
+                    borrow_usd = max(Decimal("1.0"), borrow_tokens * debt_price)
+                else:
+                    borrow_usd = max(Decimal("1.0"), Decimal(max_borrow) / Decimal(10**18))
+
+                col_asset = collateral_market or (assets[0] if assets else debt_market)
 
                 if shortfall == 0:
-                    # Account has NO shortfall -> Strictly healthy and gets skipped!
-                    # Calculate true on-chain health factor
-                    hf = Decimal("1.0") + (excess_usd / max(Decimal("1.0"), borrow_usd))
+                    # Account has NO shortfall -> Solvent on-chain
+                    # Calculate true on-chain health factor based on borrow power ratio
+                    hf = Decimal("1.0") + (excess_usd / borrow_usd)
                     hf = min(Decimal("5.0"), max(Decimal("1.01"), hf))
 
                     pos = BorrowerPosition(
@@ -406,9 +426,9 @@ class PositionDiscoveryScanner:
                         protocol="moonwell_base",
                         account_id=account,
                         debt_asset=debt_market or assets[0],
-                        collateral_asset=assets[-1],
+                        collateral_asset=col_asset,
                         debt_amount_raw=max_borrow,
-                        collateral_amount_raw=int(excess_usd * Decimal(10**18)),
+                        collateral_amount_raw=max_supply if max_supply > 0 else int(excess_usd * Decimal(10**18)),
                         health_factor=hf,
                         block_number=block_number,
                         last_updated=time.time(),
@@ -422,16 +442,16 @@ class PositionDiscoveryScanner:
                 else:
                     # Shortfall > 0 -> Undercollateralized position detected!
                     collateral_val = max(Decimal("0"), borrow_usd - shortfall_usd)
-                    hf = max(Decimal("0.10"), min(Decimal("0.99"), collateral_val / max(Decimal("1.0"), borrow_usd)))
+                    hf = max(Decimal("0.10"), min(Decimal("0.99"), collateral_val / borrow_usd))
 
                     pos = BorrowerPosition(
                         chain=ChainType.EVM,
                         protocol="moonwell_base",
                         account_id=account,
                         debt_asset=debt_market or assets[0],
-                        collateral_asset=assets[-1],
+                        collateral_asset=col_asset,
                         debt_amount_raw=max_borrow,
-                        collateral_amount_raw=int(borrow_usd * Decimal(10**18)),
+                        collateral_amount_raw=max_supply if max_supply > 0 else int(borrow_usd * Decimal(10**18)),
                         health_factor=hf,
                         block_number=block_number,
                         last_updated=time.time(),
