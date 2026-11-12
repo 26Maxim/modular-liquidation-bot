@@ -231,16 +231,26 @@ def create_api_router(
     @router.get("/api/v1/metrics")
     async def get_metrics(user: AuthenticatedUser = Depends(security.get_current_user)):
         attempts = await repository.get_recent_attempts(limit=100)
-        realized_pnl = sum(a.net_pnl_usd for a in attempts if a.status == "SUCCESS")
-        gas_spent = sum(a.gas_cost_usd for a in attempts)
+        
+        # Deduplicate attempts by unique loan account to prevent counting duplicate paper liquidations
+        seen_accounts = set()
+        deduped_attempts = []
+        for a in attempts:
+            key = (a.protocol, a.account_id)
+            if key not in seen_accounts:
+                seen_accounts.add(key)
+                deduped_attempts.append(a)
+
+        realized_pnl = sum(a.net_pnl_usd for a in deduped_attempts if a.status == "SUCCESS")
+        gas_spent = sum(a.gas_cost_usd for a in deduped_attempts)
 
         return {
             "competition": event_hub.competition_metrics.model_dump(),
             "realized_pnl_usd": str(realized_pnl),
             "gas_costs_usd": str(gas_spent),
-            "total_attempts": len(attempts),
-            "successful_attempts": len([a for a in attempts if a.status == "SUCCESS"]),
-            "failed_attempts": len([a for a in attempts if a.status in {"REVERTED", "SIMULATION_FAILED"}]),
+            "total_attempts": len(deduped_attempts),
+            "successful_attempts": len([a for a in deduped_attempts if a.status == "SUCCESS"]),
+            "failed_attempts": len([a for a in deduped_attempts if a.status in {"REVERTED", "SIMULATION_FAILED"}]),
         }
 
     # --- Positions & Opportunities ---

@@ -209,6 +209,7 @@ class PositionDiscoveryScanner:
         self.is_running = False
         self._monitored_accounts = list(INITIAL_MONITORED_BORROWERS)
         self._last_evaluated_attempts: Dict[str, float] = {}
+        self._liquidated_positions: set[str] = set()
 
     async def run_initial_discovery(self) -> None:
         """Populate initial monitored positions into repository."""
@@ -252,6 +253,11 @@ class PositionDiscoveryScanner:
 
         for pos in positions:
             if pos.health_factor >= Decimal("1.0"):
+                continue
+
+            pos_state_hash = f"{pos.account_id}:{pos.debt_amount_raw}:{pos.collateral_amount_raw}:{pos.health_factor}"
+            # Deduplication: Avoid continuously liquidating the exact same loan position in the same state
+            if not force and pos_state_hash in self._liquidated_positions:
                 continue
 
             # Throttle evaluations to once per 120s per account unless force=True
@@ -299,6 +305,32 @@ class PositionDiscoveryScanner:
                         signer_key=None,
                     )
 
+                    # Mark this loan state as liquidated to prevent duplicate counting in paper trades
+                    self._liquidated_positions.add(pos_state_hash)
+
+                    # Update the borrower's position to reflect the post-liquidation state
+                    new_debt = max(0, int(pos.debt_amount_raw) - opp.repay_amount_raw)
+                    new_collateral = max(0, int(pos.collateral_amount_raw) - opp.expected_collateral_raw)
+                    cured_pos = BorrowerPosition(
+                        chain=pos.chain,
+                        protocol=pos.protocol,
+                        account_id=pos.account_id,
+                        debt_asset=pos.debt_asset,
+                        collateral_asset=pos.collateral_asset,
+                        debt_amount_raw=new_debt,
+                        collateral_amount_raw=new_collateral,
+                        health_factor=Decimal("1.18"),
+                        block_number=pos.block_number,
+                        last_updated=time.time(),
+                    )
+                    await self.repository.upsert_borrower_position(cured_pos)
+                    if self.event_sink:
+                        await self.event_sink.emit("position_updated", {
+                            "account_id": cured_pos.account_id,
+                            "protocol": cured_pos.protocol,
+                            "health_factor": str(cured_pos.health_factor),
+                        })
+
                 results.append({"opportunity": opp, "attempt": attempt})
 
             except Exception as e:
@@ -315,27 +347,37 @@ class PositionDiscoveryScanner:
                 abi=COMPTROLLER_ABI,
             )
 
+            existing_positions = {p.account_id: p for p in await self.repository.get_all_positions()}
+
             for item in self._monitored_accounts:
                 account_addr = self.w3.to_checksum_address(item["account_id"])
+                existing = existing_positions.get(item["account_id"])
+
                 try:
                     # Query on-chain account liquidity
                     res = await comptroller.functions.getAccountLiquidity(account_addr).call()
                     err, excess_liq, shortfall = res[0], res[1], res[2]
 
-                    if err == 0:
-                        if shortfall > 0:
-                            # Account in shortfall -> Health factor < 1.0
-                            total_val = excess_liq + shortfall
-                            hf = Decimal(excess_liq) / Decimal(total_val) if total_val > 0 else Decimal("0.92")
-                            # Floor at 0.50
-                            hf = max(Decimal("0.50"), min(Decimal("0.99"), hf))
-                        else:
-                            # Account healthy -> Health factor > 1.0
-                            hf = item["health_factor"]
+                    if err == 0 and shortfall > 0:
+                        # Account in shortfall -> Health factor < 1.0
+                        total_val = excess_liq + shortfall
+                        hf = Decimal(excess_liq) / Decimal(total_val) if total_val > 0 else Decimal("0.92")
+                        hf = max(Decimal("0.50"), min(Decimal("0.99"), hf))
+                        debt_raw = item["default_debt_raw"]
+                        collateral_raw = item["default_collateral_raw"]
+                    elif existing:
+                        # Preserve post-liquidation state and cured health factor
+                        hf = existing.health_factor
+                        debt_raw = int(existing.debt_amount_raw)
+                        collateral_raw = int(existing.collateral_amount_raw)
                     else:
                         hf = item["health_factor"]
+                        debt_raw = item["default_debt_raw"]
+                        collateral_raw = item["default_collateral_raw"]
                 except Exception:
-                    hf = item["health_factor"]
+                    hf = existing.health_factor if existing else item["health_factor"]
+                    debt_raw = int(existing.debt_amount_raw) if existing else item["default_debt_raw"]
+                    collateral_raw = int(existing.collateral_amount_raw) if existing else item["default_collateral_raw"]
 
                 pos = BorrowerPosition(
                     chain=ChainType.EVM,
@@ -343,8 +385,8 @@ class PositionDiscoveryScanner:
                     account_id=item["account_id"],
                     debt_asset=item["debt_asset"],
                     collateral_asset=item["collateral_asset"],
-                    debt_amount_raw=item["default_debt_raw"],
-                    collateral_amount_raw=item["default_collateral_raw"],
+                    debt_amount_raw=debt_raw,
+                    collateral_amount_raw=collateral_raw,
                     health_factor=hf,
                     block_number=head,
                     last_updated=time.time(),
