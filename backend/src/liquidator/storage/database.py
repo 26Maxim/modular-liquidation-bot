@@ -6,6 +6,7 @@ import os
 from typing import AsyncGenerator
 
 from liquidator.storage.models import Base
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -42,7 +43,7 @@ class Database:
             # Auto-migrate SQLite columns if table was created with older schema
             def _migrate_sqlite_columns(connection):
                 try:
-                    res = connection.execute("PRAGMA table_info(borrower_positions)").fetchall()
+                    res = connection.execute(text("PRAGMA table_info(borrower_positions)")).fetchall()
                     cols = [r[1] for r in res]
                     needed = [
                         ("liquidation_price_usd", "NUMERIC(18, 6)"),
@@ -50,10 +51,11 @@ class Database:
                         ("collateral_symbol", "VARCHAR(32)"),
                         ("debt_symbol", "VARCHAR(32)"),
                         ("distance_to_liq_pct", "NUMERIC(10, 4)"),
+                        ("metadata_json", "TEXT"),
                     ]
                     for name, col_type in needed:
                         if name not in cols:
-                            connection.execute(f"ALTER TABLE borrower_positions ADD COLUMN {name} {col_type}")
+                            connection.execute(text(f"ALTER TABLE borrower_positions ADD COLUMN {name} {col_type}"))
                 except Exception:
                     pass
 

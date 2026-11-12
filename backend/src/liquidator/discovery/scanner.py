@@ -97,6 +97,13 @@ CTOKEN_ABI = [
         "stateMutability": "view",
         "type": "function",
     },
+    {
+        "inputs": [],
+        "name": "exchangeRateStored",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
 ]
 
 # Topic0 constants
@@ -376,11 +383,22 @@ class PositionDiscoveryScanner:
                 if not assets:
                     continue
 
-                # Inspect assets entered: find principal debt market and principal collateral market
+                # Inspect assets entered: find all collateral supplies and all borrowed debts
                 debt_market = None
-                max_borrow = 0
+                max_borrow_usd = Decimal("0")
                 collateral_market = None
-                max_supply = 0
+                max_supply_usd = Decimal("0")
+                all_collaterals = []
+                all_debts = []
+                total_collateral_usd = Decimal("0")
+                total_debt_usd = Decimal("0")
+                primary_col_underlying = Decimal("0")
+                primary_col_u_sym = "TOKEN"
+                primary_debt_tokens = Decimal("0")
+                primary_debt_u_sym = "TOKEN"
+                max_borrow_raw = 0
+                max_supply_raw = 0
+
                 for a in assets:
                     c = self.w3.eth.contract(address=a, abi=CTOKEN_ABI)
                     b_bal = await c.functions.borrowBalanceStored(account_addr).call(
@@ -389,36 +407,92 @@ class PositionDiscoveryScanner:
                     s_bal = await c.functions.balanceOf(account_addr).call(
                         block_identifier=block_number
                     )
-                    if b_bal > max_borrow:
-                        max_borrow = b_bal
-                        debt_market = a
-                    if s_bal > max_supply:
-                        max_supply = s_bal
-                        collateral_market = a
 
-                # If the borrow balance is zero, the account is not an active borrower
-                if max_borrow == 0:
+                    info = DEFAULT_ASSET_PRICES.get(a)
+                    sym = info[0] if info else "cToken"
+                    u_sym = sym[1:] if sym.startswith("m") else sym
+                    price = info[1] if info else Decimal("1.0")
+                    dec = 6 if "USDC" in u_sym or "EURC" in u_sym else (8 if "BTC" in u_sym else 18)
+
+                    if s_bal > 0:
+                        try:
+                            ex_rate = await c.functions.exchangeRateStored().call(block_identifier=block_number)
+                        except Exception:
+                            ex_rate = 200000000000000
+                        # Compound formula: underlying = (cTokenAmount * exchangeRate) / 1e18
+                        underlying_raw = (s_bal * ex_rate) // (10**18)
+                        underlying_tokens = Decimal(underlying_raw) / Decimal(10**dec)
+                        c_tokens = Decimal(s_bal) / Decimal(10**8)
+                        usd_val = underlying_tokens * price
+                        total_collateral_usd += usd_val
+
+                        col_entry = {
+                            "market": a,
+                            "symbol": sym,
+                            "underlying_symbol": u_sym,
+                            "c_token_amount": float(c_tokens),
+                            "underlying_amount": float(underlying_tokens),
+                            "underlying_usd": float(usd_val),
+                            "price_usd": float(price),
+                        }
+                        all_collaterals.append(col_entry)
+
+                        if usd_val > max_supply_usd or collateral_market is None:
+                            max_supply_usd = usd_val
+                            max_supply_raw = s_bal
+                            collateral_market = a
+                            primary_col_underlying = underlying_tokens
+                            primary_col_u_sym = u_sym
+
+                    if b_bal > 0:
+                        b_tokens = Decimal(b_bal) / Decimal(10**dec)
+                        usd_val = b_tokens * price
+                        total_debt_usd += usd_val
+
+                        debt_entry = {
+                            "market": a,
+                            "symbol": sym,
+                            "underlying_symbol": u_sym,
+                            "borrow_amount": float(b_tokens),
+                            "borrow_usd": float(usd_val),
+                            "price_usd": float(price),
+                        }
+                        all_debts.append(debt_entry)
+
+                        if usd_val > max_borrow_usd or debt_market is None:
+                            max_borrow_usd = usd_val
+                            max_borrow_raw = b_bal
+                            debt_market = a
+                            primary_debt_tokens = b_tokens
+                            primary_debt_u_sym = u_sym
+
+                # If total borrow balance is zero, the account is not an active borrower
+                if not all_debts or total_debt_usd == Decimal("0"):
                     continue
 
                 excess_usd = Decimal(excess_liq) / Decimal(10**18)
                 shortfall_usd = Decimal(shortfall) / Decimal(10**18)
-
-                # Determine debt USD value using token decimals and oracle price
-                debt_info = DEFAULT_ASSET_PRICES.get(debt_market)
-                if debt_info:
-                    debt_sym, debt_price = debt_info
-                    dec = 6 if "USDC" in debt_sym or "EURC" in debt_sym else (8 if "BTC" in debt_sym else 18)
-                    borrow_tokens = Decimal(max_borrow) / Decimal(10**dec)
-                    borrow_usd = max(Decimal("1.0"), borrow_tokens * debt_price)
-                else:
-                    borrow_usd = max(Decimal("1.0"), Decimal(max_borrow) / Decimal(10**18))
+                effective_borrow_usd = max(Decimal("1.0"), total_debt_usd)
 
                 col_asset = collateral_market or (assets[0] if assets else debt_market)
+                col_raw = max_supply_raw if max_supply_raw > 0 else int(excess_usd * Decimal(10**18))
+
+                pos_metadata = {
+                    "excess_liquidity_usd": str(excess_usd),
+                    "total_collateral_usd": float(total_collateral_usd),
+                    "total_debt_usd": float(total_debt_usd),
+                    "all_collaterals": all_collaterals,
+                    "all_debts": all_debts,
+                    "primary_underlying_amount": float(primary_col_underlying),
+                    "primary_underlying_symbol": primary_col_u_sym,
+                    "primary_borrow_amount": float(primary_debt_tokens),
+                    "primary_borrow_symbol": primary_debt_u_sym,
+                }
 
                 if shortfall == 0:
                     # Account has NO shortfall -> Solvent on-chain
                     # Calculate true on-chain health factor based on borrow power ratio
-                    hf = Decimal("1.0") + (excess_usd / borrow_usd)
+                    hf = Decimal("1.0") + (excess_usd / effective_borrow_usd)
                     hf = min(Decimal("5.0"), max(Decimal("1.01"), hf))
 
                     pos = BorrowerPosition(
@@ -427,12 +501,12 @@ class PositionDiscoveryScanner:
                         account_id=account,
                         debt_asset=debt_market or assets[0],
                         collateral_asset=col_asset,
-                        debt_amount_raw=max_borrow,
-                        collateral_amount_raw=max_supply if max_supply > 0 else int(excess_usd * Decimal(10**18)),
+                        debt_amount_raw=max_borrow_raw,
+                        collateral_amount_raw=col_raw,
                         health_factor=hf,
                         block_number=block_number,
                         last_updated=time.time(),
-                        metadata={"excess_liquidity_usd": str(excess_usd)},
+                        metadata=pos_metadata,
                     )
                     if self.inverted_index:
                         pos = self.inverted_index.index_position(pos)
@@ -441,8 +515,9 @@ class PositionDiscoveryScanner:
 
                 else:
                     # Shortfall > 0 -> Undercollateralized position detected!
-                    collateral_val = max(Decimal("0"), borrow_usd - shortfall_usd)
-                    hf = max(Decimal("0.10"), min(Decimal("0.99"), collateral_val / borrow_usd))
+                    pos_metadata["shortfall_usd"] = str(shortfall_usd)
+                    collateral_val = max(Decimal("0"), effective_borrow_usd - shortfall_usd)
+                    hf = max(Decimal("0.10"), min(Decimal("0.99"), collateral_val / effective_borrow_usd))
 
                     pos = BorrowerPosition(
                         chain=ChainType.EVM,
@@ -450,12 +525,12 @@ class PositionDiscoveryScanner:
                         account_id=account,
                         debt_asset=debt_market or assets[0],
                         collateral_asset=col_asset,
-                        debt_amount_raw=max_borrow,
-                        collateral_amount_raw=max_supply if max_supply > 0 else int(borrow_usd * Decimal(10**18)),
+                        debt_amount_raw=max_borrow_raw,
+                        collateral_amount_raw=col_raw,
                         health_factor=hf,
                         block_number=block_number,
                         last_updated=time.time(),
-                        metadata={"shortfall_usd": str(shortfall_usd)},
+                        metadata=pos_metadata,
                     )
                     if self.inverted_index:
                         pos = self.inverted_index.index_position(pos)

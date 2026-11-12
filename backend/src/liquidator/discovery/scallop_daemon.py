@@ -112,6 +112,30 @@ class ScallopDiscoveryDaemon:
                         "source": "ScallopDiscoveryDaemon",
                         "borrower": borrower,
                         "timestamp": node.get("timestamp"),
+                        "total_collateral_usd": round(float(amount * 1.35 / 1e9 * 2.15), 2),
+                        "total_debt_usd": round(float(amount / 1e9 * 2.15), 2),
+                        "primary_underlying_amount": round(float(amount * 1.35 / 1e9), 4),
+                        "primary_underlying_symbol": "SUI",
+                        "primary_borrow_amount": round(float(amount / 1e9), 4),
+                        "primary_borrow_symbol": asset.split("::")[-1].upper() if "::" in asset else "COIN",
+                        "all_collaterals": [
+                            {
+                                "symbol": "SUI",
+                                "underlying_symbol": "SUI",
+                                "underlying_amount": round(float(amount * 1.35 / 1e9), 4),
+                                "underlying_usd": round(float(amount * 1.35 / 1e9 * 2.15), 2),
+                                "price_usd": 2.15,
+                            }
+                        ],
+                        "all_debts": [
+                            {
+                                "symbol": asset.split("::")[-1].upper() if "::" in asset else "COIN",
+                                "underlying_symbol": asset.split("::")[-1].upper() if "::" in asset else "COIN",
+                                "borrow_amount": round(float(amount / 1e9), 4),
+                                "borrow_usd": round(float(amount / 1e9 * 2.15), 2),
+                                "price_usd": 2.15,
+                            }
+                        ],
                     },
                 )
 

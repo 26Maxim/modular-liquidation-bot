@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from contextlib import asynccontextmanager
 from typing import Any, Dict
@@ -175,6 +176,12 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
         stored_positions = await repository.get_all_positions()
         for p in stored_positions:
             try:
+                meta = {}
+                if getattr(p, "metadata_json", None):
+                    try:
+                        meta = json.loads(p.metadata_json)
+                    except Exception:
+                        pass
                 pos_obj = BorrowerPosition(
                     id=p.id,
                     chain=ChainType(p.chain),
@@ -187,6 +194,7 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
                     health_factor=p.health_factor,
                     block_number=p.block_number,
                     last_updated=p.last_updated,
+                    metadata=meta,
                 )
                 inverted_index.index_position(pos_obj)
             except Exception:

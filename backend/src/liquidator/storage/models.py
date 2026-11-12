@@ -42,6 +42,7 @@ class BorrowerPositionRecord(Base):
     collateral_symbol = Column(String(32), nullable=True)
     debt_symbol = Column(String(32), nullable=True)
     distance_to_liq_pct = Column(Numeric(10, 4), nullable=True)
+    metadata_json = Column(Text, nullable=True)
 
     __table_args__ = (
         Index("idx_borrower_health", "chain", "protocol", "health_factor"),

@@ -32,6 +32,7 @@ class Repository:
 
     async def upsert_borrower_position(self, pos: BorrowerPosition) -> None:
         pos_id = f"{pos.chain.value}_{pos.protocol}_{pos.account_id}"
+        meta_str = json.dumps(pos.metadata, default=str) if pos.metadata else None
         async with self.session_factory() as session:
             record = await session.get(BorrowerPositionRecord, pos_id)
             if not record:
@@ -52,6 +53,7 @@ class Repository:
                     collateral_symbol=pos.collateral_symbol,
                     debt_symbol=pos.debt_symbol,
                     distance_to_liq_pct=pos.distance_to_liq_pct,
+                    metadata_json=meta_str,
                 )
                 session.add(record)
             else:
@@ -67,6 +69,7 @@ class Repository:
                 record.collateral_symbol = pos.collateral_symbol
                 record.debt_symbol = pos.debt_symbol
                 record.distance_to_liq_pct = pos.distance_to_liq_pct
+                record.metadata_json = meta_str
             await session.commit()
 
     async def get_all_positions(self) -> List[BorrowerPositionRecord]:

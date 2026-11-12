@@ -613,17 +613,17 @@
         </button>
       </div>
 
-      <!-- Markets Grid -->
+      <!-- Primary Markets Summary Grid -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <!-- Debt Card -->
         <div class="bg-base-200/80 p-3 rounded-lg border border-base-content/10 space-y-1.5">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-error uppercase flex items-center gap-1">
-              <span>🔴</span> Borrow Debt Asset
+              <span>🔴</span> Primary Debt Market
             </span>
-            <span id="posModalDebtSymbol" class="badge badge-error badge-xs font-bold">USDC</span>
+            <span id="posModalDebtSymbol" class="badge badge-error badge-xs font-bold">mWELL</span>
           </div>
-          <div class="font-mono text-lg font-bold" id="posModalDebtAmount"></div>
+          <div class="font-mono text-base sm:text-lg font-bold" id="posModalDebtAmount"></div>
           <div class="text-[11px] text-base-content/60 font-mono truncate" id="posModalDebtAddress"></div>
           <div class="text-[11px] text-base-content/70 flex justify-between pt-1 border-t border-base-content/10">
             <span>Close Factor:</span>
@@ -635,15 +635,71 @@
         <div class="bg-base-200/80 p-3 rounded-lg border border-base-content/10 space-y-1.5">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-success uppercase flex items-center gap-1">
-              <span>🟢</span> Supplied Collateral
+              <span>🟢</span> Primary Collateral Market
             </span>
-            <span id="posModalCollateralSymbol" class="badge badge-success badge-xs font-bold">WETH</span>
+            <span id="posModalCollateralSymbol" class="badge badge-success badge-xs font-bold">mUSDC</span>
           </div>
-          <div class="font-mono text-lg font-bold" id="posModalCollateralAmount"></div>
+          <div class="font-mono text-base sm:text-lg font-bold" id="posModalCollateralAmount"></div>
           <div class="text-[11px] text-base-content/60 font-mono truncate" id="posModalCollateralAddress"></div>
           <div class="text-[11px] text-base-content/70 flex justify-between pt-1 border-t border-base-content/10">
             <span>Liquidation Incentive:</span>
             <span class="font-bold text-success">+10% Bonus Seize</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Complete Multi-Asset Portfolio Breakdown -->
+      <div class="space-y-3 pt-2 border-t border-base-content/10">
+        <div class="flex items-center justify-between">
+          <h4 class="font-bold text-xs uppercase tracking-wider text-base-content/80 flex items-center gap-1.5">
+            <span>📊</span> Complete Position Portfolio Balances
+          </h4>
+          <span id="posModalPortfolioSummary" class="text-[11px] font-mono font-semibold text-primary"></span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <!-- All Collaterals Table -->
+          <div class="bg-base-200/50 rounded-lg p-2.5 border border-base-content/10 space-y-1.5">
+            <div class="text-[11px] font-bold text-success uppercase flex justify-between">
+              <span>🟢 Supplied Collateral</span>
+              <span id="posModalTotalColUsd" class="font-mono text-base-content font-bold">$0.00</span>
+            </div>
+            <div class="overflow-x-auto max-h-40">
+              <table class="table table-xs w-full">
+                <thead>
+                  <tr class="text-[10px] text-base-content/60 border-b border-base-content/10">
+                    <th>Asset</th>
+                    <th class="text-right">Underlying</th>
+                    <th class="text-right">USD Value</th>
+                  </tr>
+                </thead>
+                <tbody id="posModalCollateralsTableBody">
+                  <tr><td colspan="3" class="text-center py-2 text-base-content/40">No supplied assets</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- All Debts Table -->
+          <div class="bg-base-200/50 rounded-lg p-2.5 border border-base-content/10 space-y-1.5">
+            <div class="text-[11px] font-bold text-error uppercase flex justify-between">
+              <span>🔴 Borrowed Debts</span>
+              <span id="posModalTotalDebtUsd" class="font-mono text-base-content font-bold">$0.00</span>
+            </div>
+            <div class="overflow-x-auto max-h-40">
+              <table class="table table-xs w-full">
+                <thead>
+                  <tr class="text-[10px] text-base-content/60 border-b border-base-content/10">
+                    <th>Asset</th>
+                    <th class="text-right">Borrowed</th>
+                    <th class="text-right">USD Value</th>
+                  </tr>
+                </thead>
+                <tbody id="posModalDebtsTableBody">
+                  <tr><td colspan="3" class="text-center py-2 text-base-content/40">No debt positions</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -1042,23 +1098,36 @@
     // Local cached state for detail screens
     let _latestData = { pos: [], opps: [], att: [], rej: [] };
 
-    // Known token lookup
+    // Known token lookup & cToken decimals
     const TOKEN_METADATA = {
       '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913': { sym: 'USDC', dec: 6, price: 1.00 },
-      '0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22': { sym: 'USDC', dec: 6, price: 1.00 },
+      '0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22': { sym: 'mUSDC', uSym: 'USDC', dec: 8, uDec: 6, price: 1.00 },
       '0x4200000000000000000000000000000000000006': { sym: 'WETH', dec: 18, price: 3150.00 },
-      '0x628ff693426583D9a7FB391E54366292F509D457': { sym: 'WETH', dec: 18, price: 3150.00 },
+      '0x628ff693426583D9a7FB391E54366292F509D457': { sym: 'mWETH', uSym: 'WETH', dec: 8, uDec: 18, price: 3150.00 },
       '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf': { sym: 'cbBTC', dec: 8, price: 88000.00 },
-      '0x3bf93770f2d4a794c3d9EBEfBAeBAE2a8f09A5E5': { sym: 'cbBTC', dec: 8, price: 88000.00 }
+      '0xF877ACaFA28c19b96727966690b2f44d35aD5976': { sym: 'mcbBTC', uSym: 'cbBTC', dec: 8, uDec: 8, price: 88000.00 },
+      '0x10fF57877b79e9bd949B3815220eC87B9fc5D2ee': { sym: 'mLBTC', uSym: 'LBTC', dec: 8, uDec: 8, price: 73500.00 },
+      '0xdC7810B47eAAb250De623F0eE07764afa5F71ED1': { sym: 'mWELL', uSym: 'WELL', dec: 8, uDec: 18, price: 0.02 },
+      '0x6308204872BdB7432dF97b04B42443c714904F3E': { sym: 'mMORPHO', uSym: 'MORPHO', dec: 8, uDec: 18, price: 1.85 },
+      '0x73902f619CEB9B31FD8EFecf435CbDf89E369Ba6': { sym: 'mAERO', uSym: 'AERO', dec: 8, uDec: 18, price: 0.85 },
+      '0x627Fe393Bc6EdDA28e99AE648fD6fF362514304b': { sym: 'mwstETH', uSym: 'wstETH', dec: 8, uDec: 18, price: 2450.00 },
+      '0xdE8Df9d942D78edE3Ca06e60712582F79CFfFC64': { sym: 'mVIRTUAL', uSym: 'VIRTUAL', dec: 8, uDec: 18, price: 1.20 },
+      '0xb682c840B5F4FC58B20769E691A6fa1305A501a2': { sym: 'mEURC', uSym: 'EURC', dec: 8, uDec: 6, price: 1.08 },
+      '0xb4fb8fed5b3AaA8434f0B19b1b623d977e07e86d': { sym: 'mcbXRP', uSym: 'cbXRP', dec: 8, uDec: 6, price: 0.55 },
+      'So11111111111111111111111111111111111111112': { sym: 'SOL', dec: 9, price: 135.00 },
+      'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': { sym: 'USDC', dec: 6, price: 1.00 },
+      '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI': { sym: 'SUI', dec: 9, price: 2.15 },
+      '0x2::sui::SUI': { sym: 'SUI', dec: 9, price: 2.15 },
+      'dba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC': { sym: 'USDC', dec: 6, price: 1.00 }
     };
 
     function formatTokenAmount(raw, addr) {
       const meta = TOKEN_METADATA[addr] || { sym: 'TOKEN', dec: 18 };
       const val = parseFloat(raw) / Math.pow(10, meta.dec);
-      if (meta.sym === 'USDC') {
-        return `${val.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} USDC`;
+      if (meta.sym === 'USDC' || meta.uSym === 'USDC') {
+        return `${val.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} ${meta.sym}`;
       }
-      return `${val.toFixed(4)} ${meta.sym}`;
+      return `${val.toLocaleString(undefined, {maximumFractionDigits: 4})} ${meta.sym}`;
     }
 
     // Tab switching
@@ -1121,10 +1190,102 @@
         eligText.innerHTML = `<span class="badge badge-success badge-sm font-bold mb-1">HEALTHY POSITION</span><br/><span class="text-success font-medium">Borrower maintains required collateral buffer. Protocol rules prohibit liquidation.</span>`;
       }
 
-      document.getElementById('posModalDebtAmount').textContent = formatTokenAmount(p.debt_amount_raw, p.debt_asset);
-      document.getElementById('posModalDebtAddress').textContent = p.debt_asset;
-      document.getElementById('posModalCollateralAmount').textContent = formatTokenAmount(p.collateral_amount_raw, p.collateral_asset);
-      document.getElementById('posModalCollateralAddress').textContent = p.collateral_asset;
+      // Primary Cards with Accurate Decimals
+      const meta = p.metadata || {};
+      if (meta.primary_borrow_amount !== undefined) {
+        document.getElementById('posModalDebtAmount').textContent = `${meta.primary_borrow_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})} ${meta.primary_borrow_symbol || p.debt_symbol}`;
+        document.getElementById('posModalDebtAddress').textContent = `Valuation: $${(meta.total_debt_usd || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} USD • Address: ${p.debt_asset}`;
+      } else {
+        document.getElementById('posModalDebtAmount').textContent = formatTokenAmount(p.debt_amount_raw, p.debt_asset);
+        document.getElementById('posModalDebtAddress').textContent = p.debt_asset;
+      }
+
+      if (meta.primary_underlying_amount !== undefined) {
+        const cTokText = p.collateral_symbol && p.collateral_symbol.startsWith('m') 
+          ? ` (${(p.collateral_amount_raw / 1e8).toLocaleString(undefined, {maximumFractionDigits: 2})} ${p.collateral_symbol})` 
+          : '';
+        document.getElementById('posModalCollateralAmount').textContent = `${meta.primary_underlying_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})} ${meta.primary_underlying_symbol || p.collateral_symbol}${cTokText}`;
+        document.getElementById('posModalCollateralAddress').textContent = `Valuation: $${(meta.total_collateral_usd || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} USD • Address: ${p.collateral_asset}`;
+      } else {
+        document.getElementById('posModalCollateralAmount').textContent = formatTokenAmount(p.collateral_amount_raw, p.collateral_asset);
+        document.getElementById('posModalCollateralAddress').textContent = p.collateral_asset;
+      }
+
+      // Render Complete Portfolio Breakdown Tables
+      const colTbody = document.getElementById('posModalCollateralsTableBody');
+      const debtTbody = document.getElementById('posModalDebtsTableBody');
+
+      if (meta.all_collaterals && meta.all_collaterals.length > 0) {
+        colTbody.innerHTML = meta.all_collaterals.map(c => `
+          <tr class="hover">
+            <td>
+              <div class="font-bold">${c.underlying_symbol || c.symbol}</div>
+              <div class="text-[10px] text-base-content/50 font-mono">${c.symbol !== c.underlying_symbol ? c.symbol : ''}</div>
+            </td>
+            <td class="text-right font-mono">
+              <div class="font-semibold">${(c.underlying_amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})}</div>
+              <div class="text-[10px] text-base-content/50">${c.c_token_amount ? `${c.c_token_amount.toLocaleString(undefined, {maximumFractionDigits: 2})} ${c.symbol}` : ''}</div>
+            </td>
+            <td class="text-right font-mono font-bold text-success">
+              $${(c.underlying_usd || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+            </td>
+          </tr>
+        `).join('');
+        document.getElementById('posModalTotalColUsd').textContent = `$${(meta.total_collateral_usd || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      } else {
+        colTbody.innerHTML = `
+          <tr class="hover">
+            <td><div class="font-bold">${p.collateral_symbol || 'Collateral'}</div></td>
+            <td class="text-right font-mono font-semibold">${formatTokenAmount(p.collateral_amount_raw, p.collateral_asset)}</td>
+            <td class="text-right font-mono font-bold text-success">--</td>
+          </tr>`;
+        document.getElementById('posModalTotalColUsd').textContent = '--';
+      }
+
+      if (meta.all_debts && meta.all_debts.length > 0) {
+        debtTbody.innerHTML = meta.all_debts.map(d => `
+          <tr class="hover">
+            <td>
+              <div class="font-bold">${d.underlying_symbol || d.symbol}</div>
+              <div class="text-[10px] text-base-content/50 font-mono">${d.price_usd ? `@ $${d.price_usd}` : ''}</div>
+            </td>
+            <td class="text-right font-mono font-semibold">
+              ${(d.borrow_amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})}
+            </td>
+            <td class="text-right font-mono font-bold text-error">
+              $${(d.borrow_usd || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+            </td>
+          </tr>
+        `).join('');
+        document.getElementById('posModalTotalDebtUsd').textContent = `$${(meta.total_debt_usd || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      } else {
+        debtTbody.innerHTML = `
+          <tr class="hover">
+            <td><div class="font-bold">${p.debt_symbol || 'Debt'}</div></td>
+            <td class="text-right font-mono font-semibold">${formatTokenAmount(p.debt_amount_raw, p.debt_asset)}</td>
+            <td class="text-right font-mono font-bold text-error">--</td>
+          </tr>`;
+        document.getElementById('posModalTotalDebtUsd').textContent = '--';
+      }
+
+      const summaryText = document.getElementById('posModalPortfolioSummary');
+      if (summaryText) {
+        if (meta.excess_liquidity_usd) {
+          summaryText.textContent = `Surplus Buffer: +$${parseFloat(meta.excess_liquidity_usd).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} excess collateral`;
+          summaryText.className = 'text-[11px] font-mono font-semibold text-success';
+        } else if (meta.shortfall_usd) {
+          summaryText.textContent = `Shortfall: -$${parseFloat(meta.shortfall_usd).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} undercollateralized`;
+          summaryText.className = 'text-[11px] font-mono font-semibold text-error';
+        } else {
+          summaryText.textContent = '';
+        }
+      }
+
+      document.getElementById('posModalBlock').textContent = `#${p.block_number || 'Live'}`;
+      document.getElementById('posModalUpdated').textContent = new Date(p.last_updated * 1000).toLocaleTimeString();
+
+      document.getElementById('positionDetailModal').showModal();
+    }
 
       document.getElementById('posModalBlock').textContent = `#${p.block_number || 'Live'}`;
       document.getElementById('posModalUpdated').textContent = new Date(p.last_updated * 1000).toLocaleTimeString();
@@ -1404,10 +1565,16 @@
               <span title="${p.account_id}">${p.account_id.substring(0, 6)}...${p.account_id.substring(p.account_id.length - 4)}</span>
             </td>
             <td>
-              <span class="badge badge-ghost badge-xs font-bold text-error/90">${p.debt_symbol || 'DEBT'}</span>
+              <div class="flex flex-col">
+                <span class="badge badge-ghost badge-xs font-bold text-error/90">${p.debt_symbol || 'DEBT'}</span>
+                ${p.metadata && p.metadata.primary_borrow_amount !== undefined ? `<span class="text-[10px] text-base-content/60 font-mono">${p.metadata.primary_borrow_amount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span>` : ''}
+              </div>
             </td>
             <td>
-              <span class="badge badge-ghost badge-xs font-bold text-success/90">${p.collateral_symbol || 'COLLATERAL'}</span>
+              <div class="flex flex-col">
+                <span class="badge badge-ghost badge-xs font-bold text-success/90">${p.collateral_symbol || 'COLLATERAL'}</span>
+                ${p.metadata && p.metadata.primary_underlying_amount !== undefined ? `<span class="text-[10px] text-base-content/60 font-mono">${p.metadata.primary_underlying_amount.toLocaleString(undefined, {maximumFractionDigits: 2})}</span>` : ''}
+              </div>
             </td>
             <td>
               <div class="flex flex-col">

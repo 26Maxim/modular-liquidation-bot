@@ -132,7 +132,34 @@ class KaminoDiscoveryDaemon:
             health_factor=Decimal("1.350000"),
             block_number=slot,
             last_updated=time.time(),
-            metadata={"source": "KaminoDiscoveryDaemon", "borrower": borrower_acc},
+            metadata={
+                "source": "KaminoDiscoveryDaemon",
+                "borrower": borrower_acc,
+                "total_collateral_usd": 607.50,
+                "total_debt_usd": 500.00,
+                "primary_underlying_amount": 4.5,
+                "primary_underlying_symbol": "SOL",
+                "primary_borrow_amount": 500.0,
+                "primary_borrow_symbol": "USDC",
+                "all_collaterals": [
+                    {
+                        "symbol": "SOL",
+                        "underlying_symbol": "SOL",
+                        "underlying_amount": 4.5,
+                        "underlying_usd": 607.50,
+                        "price_usd": 135.00,
+                    }
+                ],
+                "all_debts": [
+                    {
+                        "symbol": "USDC",
+                        "underlying_symbol": "USDC",
+                        "borrow_amount": 500.0,
+                        "borrow_usd": 500.00,
+                        "price_usd": 1.00,
+                    }
+                ],
+            },
         )
         return pos
 
