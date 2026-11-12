@@ -125,9 +125,9 @@
         </div>
 
         <div class="card bg-base-100 border border-base-content/10 shadow-sm p-4">
-          <div class="text-[11px] font-semibold uppercase tracking-wider text-base-content/60">Executions (Succ/Fail)</div>
+          <div class="text-[11px] font-semibold uppercase tracking-wider text-base-content/60">Executions & Battles</div>
           <div id="metricAttempts" class="text-xl sm:text-2xl font-bold text-base-content mt-1">0 / 0</div>
-          <div class="text-[10px] text-base-content/50 mt-1 truncate">Simulations & broadcast</div>
+          <div id="metricCaptureRate" class="text-[10px] text-base-content/50 mt-1 truncate">Capture: 0.0% (0 front-run)</div>
         </div>
 
         <div class="card bg-base-100 border border-base-content/10 shadow-sm p-4">
@@ -1138,6 +1138,9 @@
         document.getElementById('metricRealizedPnl').textContent = `$${parseFloat(metricsRes.realized_pnl_usd).toFixed(2)}`;
         document.getElementById('metricGasSpent').textContent = `$${parseFloat(metricsRes.gas_costs_usd).toFixed(2)}`;
         document.getElementById('metricAttempts').textContent = `${metricsRes.successful_attempts} / ${metricsRes.failed_attempts}`;
+        const capRatePct = (parseFloat(metricsRes.capture_rate || 0) * 100).toFixed(1);
+        const compAtt = metricsRes.competitor_attempts || 0;
+        document.getElementById('metricCaptureRate').textContent = `Capture: ${capRatePct}% (${compAtt} front-run)`;
         document.getElementById('metricOracleLag').textContent = `${statusRes.oracle_watcher.lag_seconds}s`;
 
         // Chain Head Blocks
@@ -1216,13 +1219,12 @@
               </td>
               <td>${a.protocol}</td>
               <td>
-                <button onclick="openGlossaryTerm('${a.status}')" class="badge ${a.status === 'SUCCESS' ? 'badge-success' : 'badge-error'} badge-xs font-bold gap-1 cursor-pointer hover:brightness-110">
-                  <span>${a.status}</span>
-                  <span>ⓘ</span>
-                </button>
+                ${a.competitor_liquidated 
+                  ? `<span class="badge badge-warning badge-xs font-bold">FRONT-RUN</span>`
+                  : `<button onclick="openGlossaryTerm('${a.status}')" class="badge ${a.status === 'SUCCESS' ? 'badge-success' : 'badge-error'} badge-xs font-bold gap-1 cursor-pointer hover:brightness-110"><span>${a.status}</span><span>ⓘ</span></button>`}
               </td>
               <td>$${parseFloat(a.gas_cost_usd).toFixed(4)}</td>
-              <td class="font-bold text-success">$${parseFloat(a.net_pnl_usd).toFixed(2)}</td>
+              <td class="font-bold ${a.competitor_liquidated ? 'text-warning' : 'text-success'}">$${parseFloat(a.net_pnl_usd).toFixed(2)}</td>
               <td class="text-xs text-base-content/70 truncate max-w-xs">${a.failure_reason || (a.tx_hash ? a.tx_hash.substring(0, 14) + '...' : 'Dry run simulation')}</td>
               <td>
                 <button onclick="viewAttemptDetails('${a.attempt_id}')" class="btn btn-outline btn-primary btn-xs font-semibold">Details</button>
