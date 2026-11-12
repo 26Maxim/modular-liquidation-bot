@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "modular-liquidation-bot"
+version = "1.0.0"
+description = "Modular multi-chain loan liquidation bot with authenticated web control plane"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.29.0",
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.2.0",
+    "sqlalchemy[asyncio]>=2.0.30",
+    "aiosqlite>=0.20.0",
+    "web3>=6.18.0",
+    "eth-abi>=5.0.0",
+    "eth-account>=0.11.0",
+    "authlib>=1.3.0",
+    "httpx>=0.27.0",
+    "itsdangerous>=2.2.0",
+    "jinja2>=3.1.4",
+    "python-multipart>=0.0.9",
+    "cryptography>=42.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2.0",
+    "pytest-asyncio>=0.23.6",
+    "mypy>=1.10.0",
+    "ruff>=0.4.4",
+    "beautifulsoup4>=4.12.3"
+]
+
+[tool.setuptools.packages.find]
+where = ["backend/src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+pythonpath = ["backend/src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = false
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+disable_error_code = ["arg-type", "no-any-return", "union-attr"]

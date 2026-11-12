@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ app_name }} - Mission Control</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .status-badge { @apply px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wider; }
+    .badge-execution { @apply bg-emerald-900 text-emerald-300 border border-emerald-700; }
+    .badge-readonly { @apply bg-blue-900 text-blue-300 border border-blue-700; }
+    .badge-researched { @apply bg-amber-900 text-amber-300 border border-amber-700; }
+    .badge-dryrun { @apply bg-purple-900 text-purple-300 border border-purple-700; }
+    .badge-live { @apply bg-red-900 text-red-300 border border-red-700 animate-pulse; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col antialiased">
+
+  <!-- Navigation Bar -->
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-bold text-emerald-400">
+          ⚡
+        </div>
+        <span class="font-bold text-lg text-slate-100 tracking-tight">{{ app_name }}</span>
+        <span id="headerModeBadge" class="status-badge badge-dryrun">DRY_RUN</span>
+        <span id="headerStateBadge" class="status-badge bg-slate-800 text-slate-300 border border-slate-700">RUNNING</span>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <!-- Live SSE Heartbeat -->
+        <div class="flex items-center space-x-1.5 text-xs text-slate-400">
+          <span id="sseIndicator" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>SSE LIVE</span>
+        </div>
+
+        <!-- User Role Profile -->
+        <div class="text-right hidden sm:block">
+          <div id="userEmail" class="text-xs font-medium text-slate-300">Operator</div>
+          <div id="userRoleBadge" class="text-[10px] text-emerald-400 uppercase font-semibold">Administrator</div>
+        </div>
+
+        <!-- Kill Switch Button -->
+        <button onclick="triggerKillSwitch()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded shadow flex items-center space-x-1 border border-red-500">
+          <span>🛑 KILL SWITCH</span>
+        </button>
+
+        <button onclick="logout()" class="text-slate-400 hover:text-slate-200 text-xs px-2 py-1 rounded border border-slate-700">
+          Sign out
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Subnav Tabs -->
+  <nav class="bg-slate-900/50 border-b border-slate-800/80 px-4 sm:px-8">
+    <div class="max-w-7xl mx-auto flex space-x-6 text-sm font-medium">
+      <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="py-3 border-b-2 border-emerald-500 text-emerald-400">Dashboard</button>
+      <button onclick="switchTab('positions')" id="tab-btn-positions" class="py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200">Positions & Opps</button>
+      <button onclick="switchTab('attempts')" id="tab-btn-attempts" class="py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200">Execution History</button>
+      <button onclick="switchTab('controls')" id="tab-btn-controls" class="py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200">Controls & Mode</button>
+      <button onclick="switchTab('rejections')" id="tab-btn-rejections" class="py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200">Rejection Logs</button>
+      <button onclick="switchTab('audit')" id="tab-btn-audit" class="py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200">Audit Trail</button>
+    </div>
+  </nav>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+    <!-- Active Circuit Breaker Alert Banner -->
+    <div id="circuitBanner" class="hidden bg-red-950/80 border border-red-600/60 p-4 rounded-lg flex items-center justify-between text-red-200 text-sm">
+      <div class="flex items-center space-x-3">
+        <span class="text-xl">⚠️</span>
+        <div>
+          <span class="font-bold text-red-100">CIRCUIT BREAKER ENGAGED:</span>
+          <span id="circuitReasonText">Daily loss or consecutive failures limit triggered.</span>
+        </div>
+      </div>
+      <button onclick="resetCircuit()" class="bg-red-800 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded">Reset / Resume</button>
+    </div>
+
+    <!-- TAB 1: DASHBOARD -->
+    <section id="tab-dashboard" class="space-y-6">
+      <!-- Metric Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+          <div class="text-xs font-semibold text-slate-400 uppercase">Realized Net P&L</div>
+          <div id="metricRealizedPnl" class="text-2xl font-bold text-emerald-400 mt-1">$0.00</div>
+          <div class="text-[11px] text-slate-500 mt-1">Net profit after gas & slippage</div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+          <div class="text-xs font-semibold text-slate-400 uppercase">Gas & Fees Spent</div>
+          <div id="metricGasSpent" class="text-2xl font-bold text-slate-200 mt-1">$0.00</div>
+          <div class="text-[11px] text-slate-500 mt-1">Total native fee conversions</div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+          <div class="text-xs font-semibold text-slate-400 uppercase">Attempts (Succ / Fail)</div>
+          <div id="metricAttempts" class="text-2xl font-bold text-slate-100 mt-1">0 / 0</div>
+          <div class="text-[11px] text-slate-500 mt-1">Dry-run simulations & live</div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+          <div class="text-xs font-semibold text-slate-400 uppercase">Oracle Watcher Health</div>
+          <div id="metricOracleLag" class="text-2xl font-bold text-emerald-400 mt-1">0.0s</div>
+          <div id="metricOracleSub" class="text-[11px] text-slate-400 mt-1">Chainlink Base: Healthy</div>
+        </div>
+      </div>
+
+      <!-- Chain & Protocol Capability Matrix -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300 mb-4 flex items-center justify-between">
+          <span>Multi-Chain & Protocol Maturity Matrix</span>
+          <span class="text-xs font-normal text-slate-400">Strictly tracked per Section 4</span>
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Protocols -->
+          <div class="bg-slate-950 p-4 rounded-lg border border-slate-800/80">
+            <h3 class="text-xs font-semibold text-slate-400 uppercase mb-3">Lending Protocols</h3>
+            <div id="protocolsMatrixList" class="space-y-2 text-sm">
+              <div class="flex justify-between items-center py-1 border-b border-slate-900">
+                <span class="font-medium text-slate-200">Moonwell (Base)</span>
+                <span class="status-badge badge-execution">EXECUTION_IMPLEMENTED</span>
+              </div>
+              <div class="flex justify-between items-center py-1 border-b border-slate-900">
+                <span class="font-medium text-slate-200">Seamless (Base)</span>
+                <span class="status-badge badge-readonly">READ_ONLY</span>
+              </div>
+              <div class="flex justify-between items-center py-1 border-b border-slate-900">
+                <span class="font-medium text-slate-200">Kamino Lend (Solana)</span>
+                <span class="status-badge badge-readonly">READ_ONLY</span>
+              </div>
+              <div class="flex justify-between items-center py-1 border-b border-slate-900">
+                <span class="font-medium text-slate-200">Scallop (Sui)</span>
+                <span class="status-badge badge-readonly">READ_ONLY</span>
+              </div>
+              <div class="flex justify-between items-center py-1">
+                <span class="font-medium text-slate-200">Aries Markets (Aptos)</span>
+                <span class="status-badge badge-researched">RESEARCHED</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chains -->
+          <div class="bg-slate-950 p-4 rounded-lg border border-slate-800/80">
+            <h3 class="text-xs font-semibold text-slate-400 uppercase mb-3">Chain Networks & Head</h3>
+            <div id="chainsMatrixList" class="space-y-2 text-sm">
+              <div class="flex justify-between items-center py-1 border-b border-slate-900">
+                <span class="font-medium text-slate-200">Base (EVM)</span>
+                <span id="baseHeadBlock" class="text-xs text-slate-400">Head: Connecting...</span>
+                <span class="status-badge badge-execution">EXECUTION_READY</span>
+              </div>
+              <div class="flex justify-between items-center py-1 border-b border-slate-900">
+                <span class="font-medium text-slate-200">Solana</span>
+                <span id="solanaHeadSlot" class="text-xs text-slate-400">Slot: Polling</span>
+                <span class="status-badge badge-readonly">READ_ONLY</span>
+              </div>
+              <div class="flex justify-between items-center py-1 border-b border-slate-900">
+                <span class="font-medium text-slate-200">Sui</span>
+                <span id="suiHeadSeq" class="text-xs text-slate-400">Checkpoint: Polling</span>
+                <span class="status-badge badge-readonly">READ_ONLY</span>
+              </div>
+              <div class="flex justify-between items-center py-1">
+                <span class="font-medium text-slate-200">Aptos</span>
+                <span id="aptosHeadVer" class="text-xs text-slate-400">Version: Polling</span>
+                <span class="status-badge badge-researched">RESEARCHED</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: POSITIONS & OPPORTUNITIES -->
+    <section id="tab-positions" class="hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300 mb-4">Monitored Borrower Positions</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="text-slate-400 uppercase border-b border-slate-800">
+              <tr>
+                <th class="py-2">Protocol / Chain</th>
+                <th class="py-2">Borrower Account</th>
+                <th class="py-2">Debt Asset</th>
+                <th class="py-2">Collateral Asset</th>
+                <th class="py-2">Health Factor</th>
+                <th class="py-2">Status</th>
+              </tr>
+            </thead>
+            <tbody id="positionsTableBody" class="divide-y divide-slate-800 text-slate-300">
+              <tr><td colspan="6" class="py-4 text-center text-slate-500">No positions loaded.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300 mb-4">Detected Opportunities & Economic Invariants</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="text-slate-400 uppercase border-b border-slate-800">
+              <tr>
+                <th class="py-2">ID</th>
+                <th class="py-2">Protocol</th>
+                <th class="py-2">Repay Raw</th>
+                <th class="py-2">Est. Gas ($)</th>
+                <th class="py-2">Expected Net ($)</th>
+                <th class="py-2">Invariant Passed</th>
+                <th class="py-2">Rejection Reason</th>
+              </tr>
+            </thead>
+            <tbody id="oppsTableBody" class="divide-y divide-slate-800 text-slate-300">
+              <tr><td colspan="7" class="py-4 text-center text-slate-500">No opportunities evaluated yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: ATTEMPTS HISTORY -->
+    <section id="tab-attempts" class="hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300 mb-4">Execution Attempts & Receipts</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="text-slate-400 uppercase border-b border-slate-800">
+              <tr>
+                <th class="py-2">Attempt ID</th>
+                <th class="py-2">Mode</th>
+                <th class="py-2">Protocol</th>
+                <th class="py-2">Status</th>
+                <th class="py-2">Gas Cost ($)</th>
+                <th class="py-2">Net P&L ($)</th>
+                <th class="py-2">Details / Failure Reason</th>
+              </tr>
+            </thead>
+            <tbody id="attemptsTableBody" class="divide-y divide-slate-800 text-slate-300">
+              <tr><td colspan="7" class="py-4 text-center text-slate-500">No execution attempts recorded.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: CONTROLS & MODE -->
+    <section id="tab-controls" class="hidden space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Operating State Controls -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300">Bot Lifecycle Controls</h2>
+          <div class="flex flex-wrap gap-3">
+            <button onclick="controlAction('start')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded">Start</button>
+            <button onclick="controlAction('stop')" class="bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold px-4 py-2 rounded">Stop</button>
+            <button onclick="controlAction('pause')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-4 py-2 rounded">Pause</button>
+            <button onclick="controlAction('resume')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded">Resume</button>
+          </div>
+          <p class="text-xs text-slate-500">Lifecycle operations require Operator or Administrator privileges.</p>
+        </div>
+
+        <!-- Mode Toggle (Sensitive Action) -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300">Operating Mode (Live vs Dry Run)</h2>
+          <div class="p-3 bg-slate-950 rounded border border-slate-800 text-xs space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-400">Current Mode:</span>
+              <span id="controlsCurrentMode" class="font-bold text-purple-400">DRY_RUN</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-400">Server Live Latch (ALLOW_LIVE_EXECUTION):</span>
+              <span id="controlsLiveLatch" class="font-semibold text-slate-300">{{ allow_live_execution }}</span>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <button onclick="openLiveConfirmModal()" class="w-full bg-red-900/60 hover:bg-red-800 text-red-200 border border-red-700 text-xs font-bold py-2 px-4 rounded">
+              Enable LIVE Execution Mode
+            </button>
+            <button onclick="setDryRunMode()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold py-2 px-4 rounded">
+              Switch to DRY_RUN Mode
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: REJECTIONS LOGS -->
+    <section id="tab-rejections" class="hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300 mb-2">Deduplicated Simulation & Invariant Rejections</h2>
+        <p class="text-xs text-slate-400 mb-4">Deduplicated on (protocol, account_id, reason_code). Volatile parameters recorded in details payload.</p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="text-slate-400 uppercase border-b border-slate-800">
+              <tr>
+                <th class="py-2">Protocol</th>
+                <th class="py-2">Account</th>
+                <th class="py-2">Reason Code</th>
+                <th class="py-2">Count</th>
+                <th class="py-2">Last Seen</th>
+                <th class="py-2">Details</th>
+              </tr>
+            </thead>
+            <tbody id="rejectionsTableBody" class="divide-y divide-slate-800 text-slate-300">
+              <tr><td colspan="6" class="py-4 text-center text-slate-500">No rejections logged.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 6: AUDIT TRAIL -->
+    <section id="tab-audit" class="hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300 mb-4">Immutable Operator Audit Trail</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="text-slate-400 uppercase border-b border-slate-800">
+              <tr>
+                <th class="py-2">Timestamp</th>
+                <th class="py-2">User Email</th>
+                <th class="py-2">Role</th>
+                <th class="py-2">Action</th>
+                <th class="py-2">Details</th>
+                <th class="py-2">Result</th>
+              </tr>
+            </thead>
+            <tbody id="auditTableBody" class="divide-y divide-slate-800 text-slate-300">
+              <tr><td colspan="6" class="py-4 text-center text-slate-500">No audit entries.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal: Live Mode Sensitive Confirmation -->
+  <div id="liveModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-red-600 max-w-md w-full rounded-xl p-6 space-y-4">
+      <h3 class="text-base font-bold text-red-400 uppercase tracking-wide">⚠️ Sensitive Action: Enable LIVE Mode</h3>
+      <p class="text-xs text-slate-300 leading-relaxed">
+        Enabling LIVE mode permits signing and broadcasting real transactions with financial consequences.
+        Flash loans do NOT eliminate gas execution costs.
+      </p>
+      <div class="space-y-2">
+        <label class="text-xs text-slate-400 font-semibold">Type <span class="text-red-400 font-mono">CONFIRM_LIVE</span> to authorize:</label>
+        <input id="modalConfirmationInput" type="text" placeholder="CONFIRM_LIVE" class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 font-mono">
+      </div>
+      <div class="flex justify-end space-x-3 pt-2">
+        <button onclick="closeLiveConfirmModal()" class="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200">Cancel</button>
+        <button onclick="submitEnableLive()" class="px-4 py-1.5 text-xs font-bold bg-red-600 hover:bg-red-700 text-white rounded">Confirm & Activate LIVE</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Navigation tab switching
+    function switchTab(tabId) {
+      const tabs = ['dashboard', 'positions', 'attempts', 'controls', 'rejections', 'audit'];
+      tabs.forEach(t => {
+        document.getElementById(`tab-${t}`).classList.add('hidden');
+        document.getElementById(`tab-btn-${t}`).className = 'py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200';
+      });
+      document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+      document.getElementById(`tab-btn-${tabId}`).className = 'py-3 border-b-2 border-emerald-500 text-emerald-400 font-bold';
+    }
+
+    // Refresh state data
+    async function refreshData() {
+      try {
+        const [statusRes, metricsRes, posRes, oppsRes, attRes, rejRes, audRes] = await Promise.all([
+          fetch('/api/v1/status').then(r => r.json()),
+          fetch('/api/v1/metrics').then(r => r.json()),
+          fetch('/api/v1/positions').then(r => r.json()),
+          fetch('/api/v1/opportunities').then(r => r.json()),
+          fetch('/api/v1/attempts').then(r => r.json()),
+          fetch('/api/v1/rejections').then(r => r.json()),
+          fetch('/api/v1/audit/logs').then(r => r.json()).catch(() => [])
+        ]);
+
+        // Status badges
+        document.getElementById('headerModeBadge').textContent = statusRes.bot_mode;
+        document.getElementById('controlsCurrentMode').textContent = statusRes.bot_mode;
+        document.getElementById('headerModeBadge').className = statusRes.bot_mode === 'LIVE' ? 'status-badge badge-live' : 'status-badge badge-dryrun';
+        document.getElementById('headerStateBadge').textContent = statusRes.bot_state;
+
+        // Circuit banner
+        if (statusRes.circuit_breaker_tripped) {
+          document.getElementById('circuitBanner').classList.remove('hidden');
+          document.getElementById('circuitReasonText').textContent = statusRes.circuit_trip_reason;
+        } else {
+          document.getElementById('circuitBanner').classList.add('hidden');
+        }
+
+        // Metrics
+        document.getElementById('metricRealizedPnl').textContent = `$${parseFloat(metricsRes.realized_pnl_usd).toFixed(2)}`;
+        document.getElementById('metricGasSpent').textContent = `$${parseFloat(metricsRes.gas_costs_usd).toFixed(2)}`;
+        document.getElementById('metricAttempts').textContent = `${metricsRes.successful_attempts} / ${metricsRes.failed_attempts}`;
+        document.getElementById('metricOracleLag').textContent = `${statusRes.oracle_watcher.lag_seconds}s`;
+
+        // Chains head
+        if (statusRes.chain_health && statusRes.chain_health.EVM) {
+          document.getElementById('baseHeadBlock').textContent = `Head: ${statusRes.chain_health.EVM.head}`;
+        }
+
+        // Render Positions
+        const posTbody = document.getElementById('positionsTableBody');
+        if (posRes.length > 0) {
+          posTbody.innerHTML = posRes.map(p => `
+            <tr>
+              <td class="py-2">${p.protocol} (${p.chain})</td>
+              <td class="py-2 font-mono text-slate-400">${p.account_id.substring(0, 10)}...</td>
+              <td class="py-2">${p.debt_asset.substring(0, 8)}...</td>
+              <td class="py-2">${p.collateral_asset.substring(0, 8)}...</td>
+              <td class="py-2 font-bold ${parseFloat(p.health_factor) < 1.0 ? 'text-red-400' : 'text-emerald-400'}">${parseFloat(p.health_factor).toFixed(4)}</td>
+              <td class="py-2">${parseFloat(p.health_factor) < 1.0 ? '<span class="text-red-400 font-bold">ELIGIBLE</span>' : 'HEALTHY'}</td>
+            </tr>
+          `).join('');
+        }
+
+        // Render Opportunities
+        const oppsTbody = document.getElementById('oppsTableBody');
+        if (oppsRes.length > 0) {
+          oppsTbody.innerHTML = oppsRes.map(o => `
+            <tr>
+              <td class="py-2 font-mono">${o.opportunity_id.substring(0, 8)}</td>
+              <td class="py-2">${o.protocol}</td>
+              <td class="py-2 font-mono">${o.repay_amount_raw}</td>
+              <td class="py-2">$${parseFloat(o.estimated_gas_usd).toFixed(4)}</td>
+              <td class="py-2 font-bold ${parseFloat(o.expected_net_profit_usd) > 0 ? 'text-emerald-400' : 'text-slate-400'}">$${parseFloat(o.expected_net_profit_usd).toFixed(2)}</td>
+              <td class="py-2">${o.invariant_passed ? '✅ YES' : '❌ NO'}</td>
+              <td class="py-2 text-slate-400">${o.rejection_reason || 'None'}</td>
+            </tr>
+          `).join('');
+        }
+
+        // Render Attempts
+        const attTbody = document.getElementById('attemptsTableBody');
+        if (attRes.length > 0) {
+          attTbody.innerHTML = attRes.map(a => `
+            <tr>
+              <td class="py-2 font-mono">${a.attempt_id.substring(0, 8)}</td>
+              <td class="py-2"><span class="status-badge ${a.mode === 'LIVE' ? 'badge-live' : 'badge-dryrun'}">${a.mode}</span></td>
+              <td class="py-2">${a.protocol}</td>
+              <td class="py-2 font-semibold ${a.status === 'SUCCESS' ? 'text-emerald-400' : 'text-red-400'}">${a.status}</td>
+              <td class="py-2">$${parseFloat(a.gas_cost_usd).toFixed(4)}</td>
+              <td class="py-2 font-bold text-emerald-400">$${parseFloat(a.net_pnl_usd).toFixed(2)}</td>
+              <td class="py-2 text-slate-400 truncate max-w-xs">${a.failure_reason || (a.tx_hash ? a.tx_hash.substring(0, 14) + '...' : 'Dry run simulated')}</td>
+            </tr>
+          `).join('');
+        }
+
+        // Render Rejections
+        const rejTbody = document.getElementById('rejectionsTableBody');
+        if (rejRes.length > 0) {
+          rejTbody.innerHTML = rejRes.map(r => `
+            <tr>
+              <td class="py-2">${r.protocol}</td>
+              <td class="py-2 font-mono text-slate-400">${r.account_id.substring(0, 10)}...</td>
+              <td class="py-2 font-semibold text-amber-400">${r.reason_code}</td>
+              <td class="py-2 font-mono">${r.occurrence_count}</td>
+              <td class="py-2 text-slate-400">${new Date(r.last_seen_at * 1000).toLocaleTimeString()}</td>
+              <td class="py-2 text-slate-500 font-mono text-[10px] truncate max-w-xs">${JSON.stringify(r.details)}</td>
+            </tr>
+          `).join('');
+        }
+
+        // Render Audit Logs
+        const audTbody = document.getElementById('auditTableBody');
+        if (audRes.length > 0) {
+          audTbody.innerHTML = audRes.map(l => `
+            <tr>
+              <td class="py-2 text-slate-400">${new Date(l.timestamp * 1000).toLocaleTimeString()}</td>
+              <td class="py-2">${l.user_email}</td>
+              <td class="py-2 text-emerald-400 font-semibold">${l.role}</td>
+              <td class="py-2 font-mono font-bold">${l.action}</td>
+              <td class="py-2 font-mono text-[10px] text-slate-400 truncate max-w-xs">${JSON.stringify(l.details)}</td>
+              <td class="py-2">${l.success ? '✅' : '❌'}</td>
+            </tr>
+          `).join('');
+        }
+
+      } catch (err) {
+        console.error('Failed to refresh data:', err);
+      }
+    }
+
+    // Server-Sent Events (SSE) listener
+    function connectSSE() {
+      const eventSource = new EventSource('/api/v1/stream');
+      const indicator = document.getElementById('sseIndicator');
+
+      eventSource.onopen = () => {
+        indicator.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+      };
+      eventSource.onerror = () => {
+        indicator.className = 'w-2 h-2 rounded-full bg-red-500';
+      };
+      eventSource.addEventListener('dry_run_attempt_completed', (e) => refreshData());
+      eventSource.addEventListener('live_attempt_finalized', (e) => refreshData());
+      eventSource.addEventListener('kill_switch_triggered', (e) => refreshData());
+    }
+
+    // Control actions
+    async function controlAction(action) {
+      await fetch(`/api/v1/controls/${action}`, { method: 'POST' });
+      await refreshData();
+    }
+
+    async function triggerKillSwitch() {
+      const reason = prompt('Please specify reason for immediate kill switch:', 'Manual Emergency Trigger');
+      if (reason) {
+        await fetch('/api/v1/controls/kill', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason })
+        });
+        await refreshData();
+      }
+    }
+
+    async function resetCircuit() {
+      await fetch('/api/v1/controls/resume', { method: 'POST' });
+      await refreshData();
+    }
+
+    function openLiveConfirmModal() {
+      document.getElementById('liveModal').classList.remove('hidden');
+    }
+    function closeLiveConfirmModal() {
+      document.getElementById('liveModal').classList.add('hidden');
+    }
+    async function submitEnableLive() {
+      const conf = document.getElementById('modalConfirmationInput').value;
+      const res = await fetch('/api/v1/controls/mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'LIVE', confirmation: conf })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert('Failed: ' + (data.detail || 'Unauthorized'));
+      } else {
+        closeLiveConfirmModal();
+        await refreshData();
+      }
+    }
+
+    async function setDryRunMode() {
+      await fetch('/api/v1/controls/mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'DRY_RUN', confirmation: '' })
+      });
+      await refreshData();
+    }
+
+    async function logout() {
+      await fetch('/auth/logout', { method: 'POST' });
+      window.location.reload();
+    }
+
+    // Init
+    window.addEventListener('DOMContentLoaded', () => {
+      refreshData();
+      connectSSE();
+      setInterval(refreshData, 10000);
+    });
+  </script>
+</body>
+</html>

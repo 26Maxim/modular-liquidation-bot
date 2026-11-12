@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  liquidator:
+    build: .
+    image: liquidator-dev:latest
+    container_name: liquidation-bot
+    ports:
+      - "8000:8000"
+    environment:
+      - DEFAULT_BOT_MODE=DRY_RUN
+      - ALLOW_LIVE_EXECUTION=false
+      - DEV_AUTH_BYPASS=true
+      - DATABASE_URL=sqlite+aiosqlite:///./data/liquidator.db
+    volumes:
+      - .:/workspace
+      - ./data:/workspace/data
+    restart: unless-stopped

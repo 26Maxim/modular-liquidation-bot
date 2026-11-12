@@ -1,0 +1,78 @@
+"""Kamino Lend Protocol Adapter on Solana."""
+
+from __future__ import annotations
+
+from decimal import Decimal
+from typing import Any, Dict, List, Optional, Tuple
+
+from liquidator.core.interfaces import LendingProtocolAdapter
+from liquidator.core.models import (
+    AdapterStatus,
+    BorrowerPosition,
+    ChainType,
+    Token,
+)
+from liquidator.core.scaling import norm_to_raw, raw_to_norm
+
+
+class KaminoAdapter(LendingProtocolAdapter):
+    """
+    Kamino Lend adapter on Solana.
+    Status: READ_ONLY.
+    """
+
+    def __init__(self, program_id: str = "KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD"):
+        self.program_id = program_id
+        self._status = AdapterStatus.READ_ONLY
+
+    @property
+    def protocol_id(self) -> str:
+        return "kamino_solana"
+
+    @property
+    def chain(self) -> ChainType:
+        return ChainType.SOLANA
+
+    @property
+    def status(self) -> AdapterStatus:
+        return self._status
+
+    async def discover_positions(self) -> List[BorrowerPosition]:
+        return []
+
+    async def refresh_position(self, account_id: str) -> Optional[BorrowerPosition]:
+        return None
+
+    def calculate_allowable_repay_and_collateral(
+        self, position: BorrowerPosition, debt_token: Token, collateral_token: Token
+    ) -> Tuple[int, int]:
+        # Close factor 20% on Solana Kamino obligations
+        close_factor = Decimal("0.20")
+        bonus = Decimal("1.05")  # 5% bonus
+
+        debt_norm = raw_to_norm(position.debt_amount_raw, debt_token.decimals)
+        repay_norm = debt_norm * close_factor
+        repay_raw = norm_to_raw(repay_norm, debt_token.decimals)
+
+        repay_usd = repay_norm * debt_token.price_usd
+        seize_usd = repay_usd * bonus
+        collateral_norm = seize_usd / collateral_token.price_usd
+        collateral_raw = norm_to_raw(collateral_norm, collateral_token.decimals)
+
+        return repay_raw, collateral_raw
+
+    def build_liquidation_call(
+        self,
+        borrower_address: str,
+        repay_amount_raw: int,
+        debt_asset: Token,
+        collateral_asset: Token,
+    ) -> Dict[str, Any]:
+        return {
+            "instruction": "liquidate_obligation_and_redeem_reserve_collateral",
+            "program_id": self.program_id,
+            "obligation": borrower_address,
+            "repay_amount": repay_amount_raw,
+            "debt_mint": debt_asset.address,
+            "collateral_mint": collateral_asset.address,
+        }
