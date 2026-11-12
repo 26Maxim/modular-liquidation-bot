@@ -6,11 +6,12 @@ services:
     image: liquidator-dev:latest
     container_name: liquidation-bot
     ports:
-      - "8000:8000"
+      - "8090:8090"
     environment:
       - DEFAULT_BOT_MODE=DRY_RUN
       - ALLOW_LIVE_EXECUTION=false
       - DEV_AUTH_BYPASS=true
+      - PORT=8090
       - DATABASE_URL=sqlite+aiosqlite:///./data/liquidator.db
     volumes:
       - .:/workspace

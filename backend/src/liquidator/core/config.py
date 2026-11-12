@@ -49,8 +49,8 @@ class AppSettings(BaseSettings):
 
     # Web & API Server
     HOST: str = "0.0.0.0"
-    PORT: int = 8000
-    CORS_ORIGINS: List[str] = ["http://localhost:8000", "http://127.0.0.1:8000"]
+    PORT: int = 8090
+    CORS_ORIGINS: List[str] = ["http://localhost:8090", "http://127.0.0.1:8090"]
 
     # Chain RPC Providers
     BASE_RPC_URL: str = Field(default="https://mainnet.base.org", description="Base EVM RPC")

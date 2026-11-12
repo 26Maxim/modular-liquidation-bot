@@ -21,6 +21,10 @@ RUN mkdir -p /opt/foundry && \
 WORKDIR /workspace
 
 COPY pyproject.toml .
+COPY backend ./backend
+COPY contracts ./contracts
+COPY README.md .
+
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir ".[dev]"
 
@@ -28,6 +32,6 @@ COPY . .
 
 ENV PYTHONPATH="/workspace/backend/src"
 
-EXPOSE 8000
+EXPOSE 8090
 
-CMD ["uvicorn", "liquidator.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "liquidator.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8090"]
