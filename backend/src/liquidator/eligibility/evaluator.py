@@ -61,13 +61,22 @@ class OpportunityEvaluator:
 
         # 1. Eligibility Check: Is the borrower position liquidatable?
         if position.health_factor >= Decimal("1.0"):
-            return self._build_ineligible_opp(
+            opp = self._build_ineligible_opp(
                 opp_id=opp_id,
                 position=position,
                 debt_token=debt_token,
                 collateral_token=collateral_token,
                 reason=ReasonCode.HEALTH_FACTOR_HEALTHY,
+                detection_block=detection_block,
             )
+            await self.repository.save_opportunity(opp)
+            await self.repository.log_rejection(
+                protocol=position.protocol,
+                account_id=position.account_id,
+                reason_code=ReasonCode.HEALTH_FACTOR_HEALTHY,
+                details={"opportunity_id": opp_id, "health_factor": str(position.health_factor), "detail": "Health factor >= 1.0; position is healthy/solvent on-chain."},
+            )
+            return opp
 
         # 2. Check Cooldown & State-Change Guard
         # Reserves hash summary (for DEX pool and debt/collateral state)
@@ -82,13 +91,22 @@ class OpportunityEvaluator:
             cooldown_duration=self.risk_params.cooldown_seconds,
         )
         if in_cooldown:
-            return self._build_ineligible_opp(
+            opp = self._build_ineligible_opp(
                 opp_id=opp_id,
                 position=position,
                 debt_token=debt_token,
                 collateral_token=collateral_token,
                 reason=ReasonCode.POSITION_COOLDOWN,
+                detection_block=detection_block,
             )
+            await self.repository.save_opportunity(opp)
+            await self.repository.log_rejection(
+                protocol=position.protocol,
+                account_id=position.account_id,
+                reason_code=ReasonCode.POSITION_COOLDOWN,
+                details={"opportunity_id": opp_id, "detail": "Position in cooldown window; reserves unchanged."},
+            )
+            return opp
 
         # 3. Calculate Allowable Repay and Seized Collateral using Protocol Rules
         try:
@@ -231,6 +249,7 @@ class OpportunityEvaluator:
         debt_token: Token,
         collateral_token: Token,
         reason: ReasonCode,
+        detection_block: Optional[int] = None,
     ) -> LiquidationOpportunity:
         return LiquidationOpportunity(
             opportunity_id=opp_id,
@@ -252,4 +271,5 @@ class OpportunityEvaluator:
             expected_net_profit_usd=Decimal("0.0"),
             invariant_passed=False,
             rejection_reason=reason,
+            detection_block=detection_block,
         )

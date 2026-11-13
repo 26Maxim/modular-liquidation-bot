@@ -605,6 +605,77 @@ class PositionDiscoveryScanner:
             # Fail closed: no opportunity recorded if QuoterV2 or evaluation fails
             logger.warning(f"Fail closed: Evaluation aborted for {pos.account_id} at block {detection_block}: {e}")
 
+    async def evaluate_eligible_positions(self, force: bool = False) -> List[Dict[str, Any]]:
+        """
+        Manually triggers evaluation of liquidatable or closest-to-shortfall positions.
+        Returns the list of opportunities and executed simulated attempts.
+        """
+        results = []
+        if not self.evaluator or not self.executor:
+            return results
+
+        candidates = []
+        if self.inverted_index:
+            hot_positions = self.inverted_index.get_hot_positions()
+            candidates.extend(hot_positions)
+            if not candidates and force:
+                query_res = self.inverted_index.query(sort_by="health_factor", page=1, page_size=3)
+                for p_dict in query_res.get("items", []):
+                    pos_id = p_dict.get("id")
+                    if pos_id and pos_id in self.inverted_index._positions_by_id:
+                        p_obj = self.inverted_index._positions_by_id[pos_id]
+                        if p_obj not in candidates:
+                            candidates.append(p_obj)
+
+        current_block = self.last_streamed_block
+        if not current_block and self.w3:
+            try:
+                current_block = await self.w3.eth.block_number
+            except Exception:
+                current_block = 0
+
+        for pos in candidates:
+            debt_token = KNOWN_TOKENS.get(
+                pos.debt_asset,
+                Token(chain=pos.chain, address=pos.debt_asset, symbol=pos.debt_symbol or "DEBT", decimals=18, price_usd=Decimal("1.00")),
+            )
+            collateral_token = KNOWN_TOKENS.get(
+                pos.collateral_asset,
+                Token(chain=pos.chain, address=pos.collateral_asset, symbol=pos.collateral_symbol or "COLLATERAL", decimals=18, price_usd=Decimal("1.00")),
+            )
+
+            try:
+                opp = await self.evaluator.evaluate_position(
+                    position=pos,
+                    debt_token=debt_token,
+                    collateral_token=collateral_token,
+                    native_token_price_usd=Decimal("3150.00"),
+                    protocol_adapter=self.protocol_adapter,
+                    funding_adapter=self.funding_adapter,
+                    route_adapter=self.route_adapter,
+                    estimated_gas_units=300_000,
+                    detection_block=current_block or 0,
+                )
+
+                attempt = None
+                if opp.invariant_passed and self.chain_adapter and pos.chain == ChainType.EVM:
+                    attempt = await self.executor.process_opportunity(
+                        opp=opp,
+                        chain_adapter=self.chain_adapter,
+                        tx_call_params={
+                            "to": self.flash_liquidator_address or "0x6278A1E803A7649642D8c35E1D5eEfa83F15A36A",
+                            "simulated_dry_run": True,
+                            "estimated_gas": 300_000,
+                        },
+                        signer_key=None,
+                    )
+
+                results.append({"opportunity": opp, "attempt": attempt})
+            except Exception as e:
+                logger.debug(f"Manual evaluation exception for {pos.account_id}: {e}")
+
+        return results
+
     async def run_periodic_deep_scan(self, markets: List[str], lookback_blocks: int = 50000) -> int:
         """
         Scans all active Moonwell markets and Seamless pool across a wider historical window

@@ -1287,12 +1287,6 @@
       document.getElementById('positionDetailModal').showModal();
     }
 
-      document.getElementById('posModalBlock').textContent = `#${p.block_number || 'Live'}`;
-      document.getElementById('posModalUpdated').textContent = new Date(p.last_updated * 1000).toLocaleTimeString();
-
-      document.getElementById('positionDetailModal').showModal();
-    }
-
     function viewOppDetails(oppId) {
       const o = _latestData.opps.find(x => x.opportunity_id === oppId);
       if (!o) return;
