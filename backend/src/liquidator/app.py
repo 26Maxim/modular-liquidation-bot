@@ -194,49 +194,83 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
         await repository.purge_red_ocean_data()
         inverted_index.remove_protocols({"moonwell_base", "kamino_solana", "scallop_sui", "seamless_base"})
 
-        # Seed initial Blue Ocean chains if registry is empty
-        existing_chains = await repository.get_registered_chains()
-        if not existing_chains:
-            default_chains = [
-                {
-                    "chain_id": "sonic",
-                    "chain_name": "Sonic Mainnet",
-                    "chain_type": "EVM",
-                    "rpc_url": "https://rpc.soniclabs.com",
-                    "protocol_type": "compound_v2",
-                    "protocol_name": "Rings Lending",
-                    "comptroller_or_pool_address": "0x5C808E56B486c478a89F2A6F14Fd5c2196627C44",
-                    "dex_router_address": "0x3b664d4b295f70a169b2075592182c1630b42c65",
-                    "funding_mode": "SELF_FUNDED",
-                    "is_active": True,
-                },
-                {
-                    "chain_id": "linea",
-                    "chain_name": "Linea zkEVM",
-                    "chain_type": "EVM",
-                    "rpc_url": "https://rpc.linea.build",
-                    "protocol_type": "compound_v2",
-                    "protocol_name": "ZeroLend",
-                    "comptroller_or_pool_address": "0x28cD8F4F507FfaA07513Cea9372F96E698888888",
-                    "dex_router_address": "0x323e20e8b5a0364e037c87c71d6046e7f8272995",
-                    "funding_mode": "SELF_FUNDED",
-                    "is_active": True,
-                },
-                {
-                    "chain_id": "mantle",
-                    "chain_name": "Mantle Network",
-                    "chain_type": "EVM",
-                    "rpc_url": "https://rpc.mantle.xyz",
-                    "protocol_type": "compound_v2",
-                    "protocol_name": "Ionic Money",
-                    "comptroller_or_pool_address": "0x3d30F326D13A0d309A71158c381c81F19bC16259",
-                    "dex_router_address": "0x13374200c29C757FDCc72F15Da98fb94f286d71e",
-                    "funding_mode": "SELF_FUNDED",
-                    "is_active": True,
-                },
-            ]
-            for c_data in default_chains:
-                await repository.upsert_registered_chain(c_data)
+        # Seed initial Blue Ocean chains if registry has fewer than 6
+        default_chains = [
+            {
+                "chain_id": "linea",
+                "chain_name": "Linea zkEVM",
+                "chain_type": "EVM",
+                "rpc_url": "https://rpc.linea.build",
+                "protocol_type": "aave_v3",
+                "protocol_name": "ZeroLend",
+                "comptroller_or_pool_address": "0x2f9bB73a8e98793e26Cb2F6C4ad037BDf1C6B269",
+                "dex_router_address": "0x323e20e8b5a0364e037c87c71d6046e7f8272995",
+                "funding_mode": "SELF_FUNDED",
+                "is_active": True,
+            },
+            {
+                "chain_id": "mantle",
+                "chain_name": "Mantle Network",
+                "chain_type": "EVM",
+                "rpc_url": "https://rpc.mantle.xyz",
+                "protocol_type": "aave_v3",
+                "protocol_name": "Lendle",
+                "comptroller_or_pool_address": "0xCFa5aE7c2CE8Fadc6426C1ff872cA45378Fb7cF3",
+                "dex_router_address": "0x13374200c29C757FDCc72F15Da98fb94f286d71e",
+                "funding_mode": "SELF_FUNDED",
+                "is_active": True,
+            },
+            {
+                "chain_id": "sonic",
+                "chain_name": "Sonic Mainnet",
+                "chain_type": "EVM",
+                "rpc_url": "https://rpc.soniclabs.com",
+                "protocol_type": "compound_v2",
+                "protocol_name": "Rings Lending",
+                "comptroller_or_pool_address": "0x5C808E56B486c478a89F2A6F14Fd5c2196627C44",
+                "dex_router_address": "0x3b664d4b295f70a169b2075592182c1630b42c65",
+                "funding_mode": "SELF_FUNDED",
+                "is_active": True,
+            },
+            {
+                "chain_id": "scroll",
+                "chain_name": "Scroll zkEVM",
+                "chain_type": "EVM",
+                "rpc_url": "https://rpc.scroll.io",
+                "protocol_type": "aave_v3",
+                "protocol_name": "Aave v3 Scroll",
+                "comptroller_or_pool_address": "0x69850D0B276776781C063771b161bd8894BCdD04",
+                "dex_router_address": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+                "funding_mode": "SELF_FUNDED",
+                "is_active": True,
+            },
+            {
+                "chain_id": "mode",
+                "chain_name": "Mode Network",
+                "chain_type": "EVM",
+                "rpc_url": "https://mainnet.mode.network",
+                "protocol_type": "compound_v2",
+                "protocol_name": "Ionic Protocol",
+                "comptroller_or_pool_address": "0x3d30F326D13A0d309A71158c381c81F19bC16259",
+                "dex_router_address": "0x5D61c537393cf21893BE619E36fC94cd73C77DD3",
+                "funding_mode": "SELF_FUNDED",
+                "is_active": True,
+            },
+            {
+                "chain_id": "taiko",
+                "chain_name": "Taiko Mainnet",
+                "chain_type": "EVM",
+                "rpc_url": "https://rpc.mainnet.taiko.xyz",
+                "protocol_type": "compound_v2",
+                "protocol_name": "Taiko Lending",
+                "comptroller_or_pool_address": "0x13374200c29C757FDCc72F15Da98fb94f286d71e",
+                "dex_router_address": "0x27239549DD40e1d60F5B80B0C4196923745B1FD2",
+                "funding_mode": "SELF_FUNDED",
+                "is_active": True,
+            },
+        ]
+        for c_data in default_chains:
+            await repository.upsert_registered_chain(c_data)
 
         # Seed Inverted Index with persisted positions
         stored_positions = await repository.get_all_positions()

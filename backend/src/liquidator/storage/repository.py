@@ -393,6 +393,8 @@ class Repository:
                 record.comptroller_or_pool_address = chain_data.get("comptroller_or_pool_address", record.comptroller_or_pool_address)
                 record.dex_router_address = chain_data.get("dex_router_address", record.dex_router_address)
                 record.funding_mode = chain_data.get("funding_mode", record.funding_mode)
+                if "last_block" in chain_data and chain_data["last_block"] > 0:
+                    record.last_block = chain_data["last_block"]
                 if "is_active" in chain_data:
                     record.is_active = chain_data["is_active"]
             await session.commit()

@@ -91,6 +91,30 @@ CTOKEN_ABI = [
     },
 ]
 
+AAVE_V3_POOL_ABI = [
+    {
+        "inputs": [],
+        "name": "getReservesList",
+        "outputs": [{"name": "", "type": "address[]"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [{"name": "user", "type": "address"}],
+        "name": "getUserAccountData",
+        "outputs": [
+            {"name": "totalCollateralBase", "type": "uint256"},
+            {"name": "totalDebtBase", "type": "uint256"},
+            {"name": "availableBorrowsBase", "type": "uint256"},
+            {"name": "currentLiquidationThreshold", "type": "uint256"},
+            {"name": "ltv", "type": "uint256"},
+            {"name": "healthFactor", "type": "uint256"},
+        ],
+        "stateMutability": "view",
+        "type": "function",
+    },
+]
+
 
 class GenericLendingAdapter(LendingProtocolAdapter):
     """
@@ -150,6 +174,35 @@ class GenericLendingAdapter(LendingProtocolAdapter):
             call_kwargs["block_identifier"] = block_identifier
 
         try:
+            head_block = block_identifier or await self.w3.eth.block_number
+
+            if self._protocol_type == "aave_v3":
+                pool = self.w3.eth.contract(
+                    address=self.w3.to_checksum_address(self._contract_address),
+                    abi=AAVE_V3_POOL_ABI,
+                )
+                data = await pool.functions.getUserAccountData(account_addr).call(**call_kwargs)
+                total_col_base = data[0]
+                total_debt_base = data[1]
+                hf_raw = data[5]
+
+                if total_debt_base == 0:
+                    return None
+
+                hf = Decimal(hf_raw) / Decimal(10**18)
+                return BorrowerPosition(
+                    chain=ChainType.EVM,
+                    protocol=self._protocol_id,
+                    account_id=account_id,
+                    debt_asset="0xUSD",
+                    collateral_asset="0xCOLLATERAL",
+                    debt_amount_raw=total_debt_base,
+                    collateral_amount_raw=total_col_base,
+                    health_factor=hf,
+                    block_number=head_block,
+                )
+
+            # Compound v2 logic
             comptroller = self.w3.eth.contract(
                 address=self.w3.to_checksum_address(self._contract_address),
                 abi=COMPTROLLER_ABI,
@@ -183,8 +236,6 @@ class GenericLendingAdapter(LendingProtocolAdapter):
 
             if max_borrow == 0:
                 return None
-
-            head_block = block_identifier or await self.w3.eth.block_number
 
             if shortfall == 0:
                 # Healthy position
@@ -238,6 +289,20 @@ class GenericLendingAdapter(LendingProtocolAdapter):
         debt_asset: Token,
         collateral_asset: Token,
     ) -> Dict[str, Any]:
+        if self._protocol_type == "aave_v3":
+            return {
+                "target": self._contract_address,
+                "method": "liquidationCall",
+                "params": [
+                    collateral_asset.address,
+                    debt_asset.address,
+                    borrower_address,
+                    repay_amount_raw,
+                    False,
+                ],
+                "protocol_id": self._protocol_id,
+                "chain_id": self._chain_id,
+            }
         return {
             "target": debt_asset.address,
             "method": "liquidateBorrow",
