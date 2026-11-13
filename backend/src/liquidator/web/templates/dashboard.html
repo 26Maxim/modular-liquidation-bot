@@ -189,104 +189,28 @@
         </div>
       </div>
 
-      <!-- Multi-Chain Maturity Matrix Card -->
+      <!-- Dynamic Blue Ocean Multi-Chain Registry Card -->
       <div class="card bg-base-100 border border-base-content/10 shadow-sm">
         <div class="card-body p-4 sm:p-5">
-          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-3">
-            <h3 class="card-title text-xs sm:text-sm font-bold uppercase tracking-wider text-base-content">Multi-Chain & Protocol Maturity</h3>
-            <span class="text-[11px] text-base-content/50">Strict status reporting per Section 4</span>
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="card-title text-xs sm:text-sm font-bold uppercase tracking-wider text-base-content">Blue Ocean Multi-Chain Venues</h3>
+                <span class="badge badge-success badge-xs font-bold">Auto-Discovery Active</span>
+              </div>
+              <p class="text-[11px] text-base-content/50">Uncontested emerging EVM chains & self-funded liquidations (0 bps fee)</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="switchTab('controls')" class="btn btn-outline btn-xs gap-1 font-semibold">
+                <span>⚙</span>
+                <span>Manage Chains</span>
+              </button>
+            </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <!-- Lending Protocols -->
-            <div class="rounded-lg bg-base-200/50 p-3 border border-base-content/5 space-y-2">
-              <div class="flex justify-between items-center mb-2">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-base-content/60">Lending Protocols</span>
-                <span class="text-[10px] text-info cursor-pointer hover:underline" onclick="openGlossaryTerm('EXECUTION_IMPLEMENTED')">Tap badge for guide ⓘ</span>
-              </div>
-              <div class="flex justify-between items-center py-1 text-xs border-b border-base-content/5">
-                <span class="font-medium">Moonwell (Base)</span>
-                <button onclick="openGlossaryTerm('EXECUTION_IMPLEMENTED')" class="badge badge-success badge-sm font-bold gap-1 cursor-pointer hover:brightness-110">
-                  <span>EXECUTION_IMPLEMENTED</span>
-                  <span>ⓘ</span>
-                </button>
-              </div>
-              <div class="flex justify-between items-center py-1 text-xs border-b border-base-content/5">
-                <span class="font-medium">Seamless (Base)</span>
-                <button onclick="openGlossaryTerm('READ_ONLY')" class="badge badge-info badge-sm font-bold gap-1 cursor-pointer hover:brightness-110">
-                  <span>READ_ONLY</span>
-                  <span>ⓘ</span>
-                </button>
-              </div>
-              <div class="flex justify-between items-center py-1 text-xs border-b border-base-content/5">
-                <span class="font-medium">Kamino Lend (Solana)</span>
-                <button onclick="openGlossaryTerm('READ_ONLY')" class="badge badge-info badge-sm font-bold gap-1 cursor-pointer hover:brightness-110">
-                  <span>READ_ONLY</span>
-                  <span>ⓘ</span>
-                </button>
-              </div>
-              <div class="flex justify-between items-center py-1 text-xs border-b border-base-content/5">
-                <span class="font-medium">Scallop (Sui)</span>
-                <button onclick="openGlossaryTerm('READ_ONLY')" class="badge badge-info badge-sm font-bold gap-1 cursor-pointer hover:brightness-110">
-                  <span>READ_ONLY</span>
-                  <span>ⓘ</span>
-                </button>
-              </div>
-              <div class="flex justify-between items-center py-1 text-xs">
-                <span class="font-medium">Aries Markets (Aptos)</span>
-                <button onclick="openGlossaryTerm('RESEARCHED')" class="badge badge-neutral badge-sm font-bold gap-1 cursor-pointer hover:brightness-110">
-                  <span>RESEARCHED</span>
-                  <span>ⓘ</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Chain Networks -->
-            <div class="rounded-lg bg-base-200/50 p-3 border border-base-content/5 space-y-2">
-              <div class="flex justify-between items-center mb-2">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-base-content/60">Networks & Block Head</span>
-                <span class="text-[10px] text-info cursor-pointer hover:underline" onclick="openGlossaryTerm('EXECUTION_IMPLEMENTED')">Tap badge for guide ⓘ</span>
-              </div>
-              <div class="flex justify-between items-center py-1 text-xs border-b border-base-content/5">
-                <div>
-                  <span class="font-medium">Base EVM</span>
-                  <div id="baseHeadBlock" class="text-[10px] text-base-content/50">Head: Polling...</div>
-                </div>
-                <button onclick="openGlossaryTerm('EXECUTION_IMPLEMENTED')" class="badge badge-success badge-sm font-bold gap-1 cursor-pointer hover:brightness-110">
-                  <span>EXECUTION_READY</span>
-                  <span>ⓘ</span>
-                </button>
-              </div>
-              <div class="flex justify-between items-center py-1 text-xs border-b border-base-content/5">
-                <div>
-                  <span class="font-medium">Solana</span>
-                  <div id="solanaHeadSlot" class="text-[10px] text-base-content/50">Slot: Polling...</div>
-                </div>
-                <button onclick="openGlossaryTerm('READ_ONLY')" class="badge badge-info badge-sm font-bold gap-1 cursor-pointer hover:brightness-110">
-                  <span>READ_ONLY</span>
-                  <span>ⓘ</span>
-                </button>
-              </div>
-              <div class="flex justify-between items-center py-1 text-xs border-b border-base-content/5">
-                <div>
-                  <span class="font-medium">Sui</span>
-                  <div id="suiHeadSeq" class="text-[10px] text-base-content/50">Checkpoint: Polling...</div>
-                </div>
-                <button onclick="openGlossaryTerm('READ_ONLY')" class="badge badge-info badge-sm font-bold gap-1 cursor-pointer hover:brightness-110">
-                  <span>READ_ONLY</span>
-                  <span>ⓘ</span>
-                </button>
-              </div>
-              <div class="flex justify-between items-center py-1 text-xs">
-                <div>
-                  <span class="font-medium">Aptos</span>
-                  <div id="aptosHeadVer" class="text-[10px] text-base-content/50">Version: Polling...</div>
-                </div>
-                <button onclick="openGlossaryTerm('RESEARCHED')" class="badge badge-neutral badge-sm font-bold gap-1 cursor-pointer hover:brightness-110">
-                  <span>RESEARCHED</span>
-                  <span>ⓘ</span>
-                </button>
-              </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="dashboardChainsGrid">
+            <div class="rounded-lg bg-base-200/50 p-3 border border-base-content/5 text-center text-xs text-base-content/50 col-span-3 py-6">
+              Loading active blue ocean chains...
             </div>
           </div>
         </div>
@@ -490,6 +414,49 @@
           </div>
         </div>
       </div>
+
+      <!-- Chain Registry & Newly Forked Chains Manager -->
+      <div class="card bg-base-100 border border-base-content/10 shadow-sm p-4 sm:p-5 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="card-title text-xs sm:text-sm font-bold uppercase tracking-wider">Dynamic EVM Chain & Protocol Registry</h3>
+              <span class="badge badge-primary badge-xs font-mono font-bold" id="registeredChainsCountBadge">0</span>
+            </div>
+            <p class="text-[11px] text-base-content/60">Configure emerging EVM chains, Compound/Aave forks, and zero-fee self-funded execution.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="openRegisterChainModal()" class="btn btn-xs sm:btn-sm btn-primary gap-1">
+              <span>+</span>
+              <span>Register New Chain</span>
+            </button>
+            <button onclick="triggerPurgeRedOcean()" class="btn btn-xs sm:btn-sm btn-error btn-outline gap-1" title="Purge legacy Base, Solana, and Sui data">
+              <span>🗑</span>
+              <span>Purge Red Ocean Data</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="table table-zebra table-xs sm:table-sm w-full">
+            <thead>
+              <tr class="text-base-content/70 text-[11px]">
+                <th>Chain Name</th>
+                <th>Chain ID</th>
+                <th>Protocol</th>
+                <th>Comptroller / Pool</th>
+                <th>Funding Mode</th>
+                <th>Last Block</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="registeredChainsTableBody">
+              <tr><td colspan="8" class="text-center py-4 text-base-content/50">Loading registered chains...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <!-- TAB 5: REJECTIONS -->
@@ -577,8 +544,8 @@
       <div class="flex justify-between items-start">
         <div>
           <div class="flex items-center gap-2">
-            <span class="badge badge-primary badge-sm font-bold" id="posModalProtocol">Moonwell Base</span>
-            <span class="badge badge-outline badge-sm" id="posModalChain">Base (EVM)</span>
+            <span class="badge badge-primary badge-sm font-bold" id="posModalProtocol">Protocol</span>
+            <span class="badge badge-outline badge-sm" id="posModalChain">EVM</span>
             <span class="badge badge-sm font-bold" id="posModalTierBadge">HOT 🔥</span>
           </div>
           <h3 class="font-bold text-sm sm:text-base font-mono mt-1 text-base-content break-all" id="posModalAccount"></h3>
@@ -742,7 +709,7 @@
         <div>
           <div class="flex items-center gap-2">
             <span id="oppModalGateBadge" class="badge badge-success font-bold badge-sm">INVARIANT PASSED</span>
-            <span class="badge badge-outline badge-sm" id="oppModalProtocol">Moonwell Base</span>
+            <span class="badge badge-outline badge-sm" id="oppModalProtocol">Protocol</span>
           </div>
           <h3 class="font-bold text-sm font-mono mt-1 text-base-content" id="oppModalId"></h3>
         </div>
@@ -833,7 +800,7 @@
           <div class="flex items-center gap-2">
             <span id="attModalModeBadge" class="badge badge-secondary badge-sm font-bold">DRY_RUN</span>
             <span id="attModalStatusBadge" class="badge badge-success badge-sm font-bold">SUCCESS</span>
-            <span class="badge badge-outline badge-sm" id="attModalProtocol">Moonwell Base</span>
+            <span class="badge badge-outline badge-sm" id="attModalProtocol">Protocol</span>
           </div>
           <h3 class="font-bold text-sm font-mono mt-1 text-base-content" id="attModalId"></h3>
         </div>
@@ -925,6 +892,73 @@
       <div class="modal-action">
         <form method="dialog"><button class="btn btn-sm btn-primary">Done</button></form>
       </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  </dialog>
+
+  <!-- Modal 5: Register New EVM Chain or Protocol Fork -->
+  <dialog id="modalRegisterChain" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box bg-base-100 max-w-lg border border-primary/30 p-5 space-y-3">
+      <div class="flex justify-between items-center border-b border-base-content/10 pb-2">
+        <h3 class="font-bold text-sm uppercase tracking-wider text-primary">Register New EVM Chain or Protocol Fork</h3>
+        <form method="dialog"><button class="btn btn-xs btn-circle btn-ghost">✕</button></form>
+      </div>
+      <p class="text-xs text-base-content/60">Configure emerging EVM rollups to auto-discover debt obligations with zero-fee self-funded execution.</p>
+      
+      <form id="formRegisterChain" onsubmit="submitRegisterChain(event)" class="space-y-3 text-xs">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="label label-text text-[11px] font-semibold py-0.5">Chain ID (slug)</label>
+            <input id="regChainId" type="text" placeholder="e.g. berachain" class="input input-xs input-bordered w-full font-mono" required />
+          </div>
+          <div>
+            <label class="label label-text text-[11px] font-semibold py-0.5">Chain Name</label>
+            <input id="regChainName" type="text" placeholder="e.g. Berachain Mainnet" class="input input-xs input-bordered w-full" required />
+          </div>
+        </div>
+
+        <div>
+          <label class="label label-text text-[11px] font-semibold py-0.5">RPC URL (HTTP/HTTPS)</label>
+          <input id="regRpcUrl" type="url" placeholder="https://rpc.berachain.com" class="input input-xs input-bordered w-full font-mono" required />
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="label label-text text-[11px] font-semibold py-0.5">Protocol Name</label>
+            <input id="regProtoName" type="text" placeholder="e.g. Bend Protocol" class="input input-xs input-bordered w-full" required />
+          </div>
+          <div>
+            <label class="label label-text text-[11px] font-semibold py-0.5">Protocol Architecture</label>
+            <select id="regProtoType" class="select select-xs select-bordered w-full">
+              <option value="compound_v2">Compound v2 (Comptroller)</option>
+              <option value="aave_v3">Aave v3 (Pool)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="label label-text text-[11px] font-semibold py-0.5">Comptroller or Pool Contract Address</label>
+          <input id="regContractAddr" type="text" placeholder="0x..." class="input input-xs input-bordered w-full font-mono" required />
+        </div>
+
+        <div>
+          <label class="label label-text text-[11px] font-semibold py-0.5">DEX Router Address (Optional)</label>
+          <input id="regDexRouter" type="text" placeholder="0x... (leave empty for direct hold)" class="input input-xs input-bordered w-full font-mono" />
+        </div>
+
+        <div>
+          <label class="label label-text text-[11px] font-semibold py-0.5">Funding Mode</label>
+          <select id="regFundingMode" class="select select-xs select-bordered w-full">
+            <option value="SELF_FUNDED" selected>SELF_FUNDED (0 bps fee, no flash loan contract needed)</option>
+            <option value="FLASH_LOAN">FLASH_LOAN (Balancer / Aave flash loan vault)</option>
+          </select>
+        </div>
+
+        <div class="modal-action mt-4 pt-2 border-t border-base-content/10">
+          <button type="button" onclick="document.getElementById('modalRegisterChain').close()" class="btn btn-xs btn-ghost">Cancel</button>
+          <button type="submit" class="btn btn-xs btn-primary font-bold">Register & Start Scanning</button>
+        </div>
+      </form>
     </div>
     <form method="dialog" class="modal-backdrop"><button>close</button></form>
   </dialog>
@@ -1049,21 +1083,21 @@
         term: "EXECUTION_IMPLEMENTED",
         badgeClass: "badge-success",
         summary: "Complete end-to-end vertical slice verified and tested.",
-        explanation: "Active on Moonwell (Base EVM). Includes verified Solidity contracts (FlashLiquidator.sol), atomic Balancer flash loans, Uniswap V3 quoter integration, invariant checking, and Foundry adversarial test coverage."
+        explanation: "Verified on emerging EVM chains with direct self-funded execution (0 bps fee) or atomic flash loan provider integration, invariant checking, and simulation test coverage."
       },
       {
         category: "Multi-Chain Maturity Statuses",
         term: "READ_ONLY",
         badgeClass: "badge-info",
         summary: "On-chain state discovery, account liquidity, and oracle price monitoring are active.",
-        explanation: "Active on Seamless (Base EVM) and Kamino Lend (Solana). Connects to real RPC nodes, monitors borrower liquidity, and queries oracles, but execution contracts are not deployed."
+        explanation: "Connects to real RPC nodes, monitors borrower liquidity, and queries oracles, but live execution contracts are not deployed."
       },
       {
         category: "Multi-Chain Maturity Statuses",
         term: "RESEARCHED",
         badgeClass: "badge-neutral",
         summary: "Protocol architecture, close factors, liquidation bonuses, and contracts documented.",
-        explanation: "Active on Aries Markets (Aptos) and Scallop (Sui). Documented in docs/MARKET_RESEARCH.md with deployment addresses, close factors, flash loan mechanisms, and competition indicators."
+        explanation: "Researched and documented with deployment addresses, close factors, flash loan mechanisms, and competition indicators."
       },
       {
         category: "Operating Modes & Core Concepts",
@@ -1077,14 +1111,14 @@
         term: "Close Factor",
         badgeClass: "badge-primary",
         summary: "Maximum percentage of outstanding debt that can be repaid in one liquidation.",
-        explanation: "On Moonwell (Compound v2 architecture), the close factor is 50% (0.50). A liquidator can repay at most half of the borrower's debt in a single transaction."
+        explanation: "On Compound v2 / v3 architectures, the close factor is typically 50% (0.50). A liquidator can repay at most half of the borrower's debt in a single transaction."
       },
       {
         category: "Operating Modes & Core Concepts",
         term: "Liquidation Incentive",
         badgeClass: "badge-success",
         summary: "Bonus collateral awarded to the liquidator for performing liquidation.",
-        explanation: "On Moonwell Base, the incentive is 10% (1.10 multiplier). For every $1.00 of debt repaid, the liquidator receives $1.10 worth of seized collateral at current oracle prices."
+        explanation: "The incentive is typically 5% to 10% (1.05 to 1.10 multiplier). For every $1.00 of debt repaid, the liquidator receives $1.05 to $1.10 worth of seized collateral at current oracle prices."
       },
       {
         category: "Operating Modes & Core Concepts",
@@ -1613,15 +1647,20 @@
     async function refreshData() {
       try {
         const posQueryUrl = `/api/v1/positions?chain=${_posFilter.chain}&tier=${_posFilter.tier}&search=${encodeURIComponent(_posFilter.search)}&sort_by=${_posFilter.sortBy}&page=${_posFilter.page}&page_size=${_posFilter.pageSize}`;
-        const [statusRes, metricsRes, posRes, oppsRes, attRes, rejRes, audRes] = await Promise.all([
+        const [statusRes, metricsRes, posRes, oppsRes, attRes, rejRes, audRes, chainsRes] = await Promise.all([
           fetch('/api/v1/status').then(r => r.json()),
           fetch('/api/v1/metrics').then(r => r.json()),
           fetch(posQueryUrl).then(r => r.json()),
           fetch('/api/v1/opportunities').then(r => r.json()),
           fetch('/api/v1/attempts').then(r => r.json()),
           fetch('/api/v1/rejections').then(r => r.json()),
-          fetch('/api/v1/audit/logs').then(r => r.json()).catch(() => [])
+          fetch('/api/v1/audit/logs').then(r => r.json()).catch(() => []),
+          fetch('/api/v1/chains').then(r => r.json()).catch(() => [])
         ]);
+
+        if (chainsRes && Array.isArray(chainsRes)) {
+          renderChains(chainsRes);
+        }
 
         _latestData = { pos: posRes.items || (Array.isArray(posRes) ? posRes : []), opps: oppsRes || [], att: attRes || [], rej: rejRes || [] };
 
@@ -1686,12 +1725,16 @@
           if (elClosestPrice) elClosestPrice.textContent = `${closest.collateral_symbol} @ $${parseFloat(closest.liquidation_price_usd || 0).toFixed(2)}`;
         }
 
-        // Chain Head Blocks
+        // Chain Head Blocks (safe guards)
         if (statusRes.chain_health) {
-          if (statusRes.chain_health.EVM) document.getElementById('baseHeadBlock').textContent = `Head: #${statusRes.chain_health.EVM.head}`;
-          if (statusRes.chain_health.SOLANA) document.getElementById('solanaHeadSlot').textContent = `Slot: #${statusRes.chain_health.SOLANA.head}`;
-          if (statusRes.chain_health.SUI) document.getElementById('suiHeadSeq').textContent = `Checkpoint: #${statusRes.chain_health.SUI.head}`;
-          if (statusRes.chain_health.APTOS) document.getElementById('aptosHeadVer').textContent = `Version: #${statusRes.chain_health.APTOS.head}`;
+          const elBase = document.getElementById('baseHeadBlock');
+          if (elBase && statusRes.chain_health.EVM) elBase.textContent = `Head: #${statusRes.chain_health.EVM.head}`;
+          const elSol = document.getElementById('solanaHeadSlot');
+          if (elSol && statusRes.chain_health.SOLANA) elSol.textContent = `Slot: #${statusRes.chain_health.SOLANA.head}`;
+          const elSui = document.getElementById('suiHeadSeq');
+          if (elSui && statusRes.chain_health.SUI) elSui.textContent = `Checkpoint: #${statusRes.chain_health.SUI.head}`;
+          const elApt = document.getElementById('aptosHeadVer');
+          if (elApt && statusRes.chain_health.APTOS) elApt.textContent = `Version: #${statusRes.chain_health.APTOS.head}`;
         }
 
         // Render Positions
@@ -1790,6 +1833,166 @@
 
       } catch (err) {
         console.error('Failed to refresh data:', err);
+      }
+    }
+
+    // --- Dynamic Multi-Chain Registry Management ---
+    function openRegisterChainModal() {
+      const modal = document.getElementById('modalRegisterChain');
+      if (modal) modal.showModal();
+    }
+
+    async function submitRegisterChain(e) {
+      if (e) e.preventDefault();
+      const payload = {
+        chain_id: document.getElementById('regChainId').value.trim().toLowerCase(),
+        chain_name: document.getElementById('regChainName').value.trim(),
+        chain_type: "EVM",
+        rpc_url: document.getElementById('regRpcUrl').value.trim(),
+        protocol_name: document.getElementById('regProtoName').value.trim(),
+        protocol_type: document.getElementById('regProtoType').value,
+        comptroller_or_pool_address: document.getElementById('regContractAddr').value.trim(),
+        dex_router_address: document.getElementById('regDexRouter').value.trim() || null,
+        funding_mode: document.getElementById('regFundingMode').value,
+        is_active: true
+      };
+      try {
+        const res = await fetch('/api/v1/chains', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          document.getElementById('modalRegisterChain').close();
+          document.getElementById('formRegisterChain').reset();
+          await refreshData();
+        } else {
+          const err = await res.json();
+          alert('Failed to register chain: ' + (err.detail || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Error registering chain: ' + err.message);
+      }
+    }
+
+    async function toggleChainActive(chainId, isActive) {
+      try {
+        const res = await fetch(`/api/v1/chains/${chainId}/toggle`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_active: isActive })
+        });
+        if (res.ok) {
+          await refreshData();
+        }
+      } catch (e) {
+        console.error("Toggle chain error:", e);
+      }
+    }
+
+    async function deleteChain(chainId) {
+      if (!confirm(`Are you sure you want to unregister chain '${chainId}'?`)) return;
+      try {
+        const res = await fetch(`/api/v1/chains/${chainId}`, { method: 'DELETE' });
+        if (res.ok) {
+          await refreshData();
+        }
+      } catch (e) {
+        console.error("Delete chain error:", e);
+      }
+    }
+
+    async function triggerPurgeRedOcean() {
+      if (!confirm("This will permanently purge all monitored positions, opportunities, and attempts from legacy red-ocean venues (Moonwell Base, Kamino Solana, Scallop Sui). Continue?")) return;
+      try {
+        const res = await fetch('/api/v1/cleanup', { method: 'POST' });
+        const data = await res.json();
+        alert(`Red Ocean Data Cleared!\nDeleted Positions: ${data.purged?.deleted_positions || 0}\nDeleted Attempts: ${data.purged?.deleted_attempts || 0}\nDeleted Opps: ${data.purged?.deleted_opportunities || 0}`);
+        await refreshData();
+      } catch (e) {
+        alert('Purge failed: ' + e.message);
+      }
+    }
+
+    function renderChains(chains) {
+      const grid = document.getElementById('dashboardChainsGrid');
+      const tbody = document.getElementById('registeredChainsTableBody');
+      const badge = document.getElementById('registeredChainsCountBadge');
+      const chainSelect = document.getElementById('posChainSelect');
+
+      if (badge) badge.textContent = `${chains.length}`;
+
+      // Update posChainSelect filter dropdown dynamically
+      if (chainSelect) {
+        const currVal = chainSelect.value;
+        let opts = '<option value="ALL">All Chains</option>';
+        chains.forEach(c => {
+          opts += `<option value="${c.chain_id}">${c.chain_name}</option>`;
+        });
+        chainSelect.innerHTML = opts;
+        if (currVal && Array.from(chainSelect.options).some(o => o.value === currVal)) {
+          chainSelect.value = currVal;
+        }
+      }
+
+      // Render Dashboard Grid
+      if (grid) {
+        if (!chains || chains.length === 0) {
+          grid.innerHTML = '<div class="rounded-lg bg-base-200/50 p-3 border border-base-content/5 text-center text-xs text-base-content/50 col-span-3 py-6">No blue ocean chains registered. Click Manage Chains to add one.</div>';
+        } else {
+          grid.innerHTML = chains.map(c => `
+            <div class="rounded-lg bg-base-200/50 p-3 border border-base-content/10 space-y-2 relative overflow-hidden">
+              <div class="flex justify-between items-start">
+                <div>
+                  <span class="font-bold text-xs text-base-content">${c.chain_name}</span>
+                  <div class="text-[10px] text-base-content/50 font-mono">${c.protocol_name} (${c.protocol_type})</div>
+                </div>
+                <div class="flex items-center gap-1">
+                  <span class="badge ${c.funding_mode === 'SELF_FUNDED' ? 'badge-primary' : 'badge-secondary'} badge-xs font-mono">${c.funding_mode === 'SELF_FUNDED' ? '0 bps (Self)' : 'Flash'}</span>
+                  <span class="badge ${c.is_active ? 'badge-success' : 'badge-neutral'} badge-xs font-bold">${c.is_active ? 'ACTIVE' : 'PAUSED'}</span>
+                </div>
+              </div>
+              <div class="pt-1 text-[11px] space-y-1 border-t border-base-content/5">
+                <div class="flex justify-between text-base-content/70">
+                  <span>Comptroller:</span>
+                  <span class="font-mono text-[10px] truncate max-w-[140px]" title="${c.comptroller_or_pool_address}">${c.comptroller_or_pool_address.substring(0, 8)}...${c.comptroller_or_pool_address.substring(c.comptroller_or_pool_address.length - 6)}</span>
+                </div>
+                <div class="flex justify-between text-base-content/70">
+                  <span>Last Scanned Block:</span>
+                  <span class="font-mono text-success font-semibold">${c.last_block > 0 ? '#' + c.last_block.toLocaleString() : 'Auto-Syncing'}</span>
+                </div>
+              </div>
+            </div>
+          `).join('');
+        }
+      }
+
+      // Render Controls Table
+      if (tbody) {
+        if (!chains || chains.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-base-content/50">No chains registered yet.</td></tr>';
+        } else {
+          tbody.innerHTML = chains.map(c => `
+            <tr class="text-xs">
+              <td class="font-bold">${c.chain_name}</td>
+              <td class="font-mono text-base-content/70">${c.chain_id}</td>
+              <td><span class="badge badge-outline badge-xs">${c.protocol_name}</span></td>
+              <td class="font-mono text-[11px]">${c.comptroller_or_pool_address.substring(0, 8)}...${c.comptroller_or_pool_address.substring(c.comptroller_or_pool_address.length - 6)}</td>
+              <td>
+                <span class="badge ${c.funding_mode === 'SELF_FUNDED' ? 'badge-primary' : 'badge-secondary'} badge-xs font-mono">
+                  ${c.funding_mode}
+                </span>
+              </td>
+              <td class="font-mono text-success">${c.last_block > 0 ? '#' + c.last_block.toLocaleString() : 'Syncing'}</td>
+              <td>
+                <input type="checkbox" class="toggle toggle-success toggle-xs" ${c.is_active ? 'checked' : ''} onchange="toggleChainActive('${c.chain_id}', this.checked)" />
+              </td>
+              <td>
+                <button onclick="deleteChain('${c.chain_id}')" class="btn btn-ghost btn-xs text-error p-1" title="Delete Chain">✕</button>
+              </td>
+            </tr>
+          `).join('');
+        }
       }
     }
 

@@ -51,6 +51,23 @@ class KillSwitchPayload(BaseModel):
     reason: str = "Manual Emergency Trigger"
 
 
+class RegisterChainPayload(BaseModel):
+    chain_id: str
+    chain_name: str
+    chain_type: str = "EVM"
+    rpc_url: str
+    protocol_type: str = "compound_v2"
+    protocol_name: str
+    comptroller_or_pool_address: str
+    dex_router_address: Optional[str] = None
+    funding_mode: str = "SELF_FUNDED"
+    is_active: bool = True
+
+
+class ToggleChainPayload(BaseModel):
+    is_active: bool
+
+
 def create_api_router(
     settings: AppSettings,
     repository: Repository,
@@ -191,6 +208,20 @@ def create_api_router(
                 "status": cadapter.status.value,
             }
 
+        # Registered dynamic chains
+        registered = await repository.get_registered_chains()
+        reg_chains = [
+            {
+                "chain_id": c.chain_id,
+                "chain_name": c.chain_name,
+                "protocol_name": c.protocol_name,
+                "last_block": c.last_block,
+                "is_active": c.is_active,
+                "funding_mode": c.funding_mode,
+            }
+            for c in registered
+        ]
+
         return {
             "bot_mode": policy_engine.mode.value,
             "bot_state": policy_engine.state.value,
@@ -201,6 +232,7 @@ def create_api_router(
             "consecutive_failures": policy_engine.consecutive_failures,
             "daily_realized_loss_usd": str(policy_engine.daily_realized_loss_usd),
             "chain_health": chain_health,
+            "registered_chains": reg_chains,
             "oracle_watcher": oracle_watcher.get_health_status(),
         }
 
@@ -216,6 +248,16 @@ def create_api_router(
                 "is_execution_ready": padapter.status == AdapterStatus.EXECUTION_IMPLEMENTED,
             })
 
+        registered = await repository.get_registered_chains()
+        for c in registered:
+            protocols_info.append({
+                "protocol_id": f"{c.protocol_name} ({c.chain_name})",
+                "chain": c.chain_name,
+                "status": "PRODUCTION" if c.is_active else "PAUSED",
+                "is_execution_ready": c.is_active,
+                "funding_mode": c.funding_mode,
+            })
+
         chains_info = []
         for ctype, cadapter in chain_adapters.items():
             chains_info.append({
@@ -227,6 +269,18 @@ def create_api_router(
         return {
             "protocols": protocols_info,
             "chains": chains_info,
+            "registered_chains": [
+                {
+                    "chain_id": c.chain_id,
+                    "chain_name": c.chain_name,
+                    "protocol_name": c.protocol_name,
+                    "rpc_url": c.rpc_url,
+                    "funding_mode": c.funding_mode,
+                    "is_active": c.is_active,
+                    "last_block": c.last_block,
+                }
+                for c in registered
+            ],
         }
 
     @router.get("/api/v1/metrics")
@@ -584,6 +638,113 @@ def create_api_router(
             }
             for audit_rec in logs
         ]
+
+    # --- Dynamic Chain & Protocol Registry ---
+    @router.get("/api/v1/chains")
+    async def get_registered_chains(
+        active_only: bool = Query(False),
+        user: AuthenticatedUser = Depends(security.get_current_user),
+    ):
+        """Returns all dynamically registered EVM chains and protocols."""
+        chains = await repository.get_registered_chains(active_only=active_only)
+        return [
+            {
+                "chain_id": c.chain_id,
+                "chain_name": c.chain_name,
+                "chain_type": c.chain_type,
+                "rpc_url": c.rpc_url,
+                "protocol_type": c.protocol_type,
+                "protocol_name": c.protocol_name,
+                "comptroller_or_pool_address": c.comptroller_or_pool_address,
+                "dex_router_address": c.dex_router_address,
+                "funding_mode": c.funding_mode,
+                "is_active": c.is_active,
+                "created_at": c.created_at,
+                "last_block": c.last_block,
+            }
+            for c in chains
+        ]
+
+    @router.post("/api/v1/chains")
+    async def register_chain(
+        payload: RegisterChainPayload,
+        user: AuthenticatedUser = Depends(security.require_role({UserRole.ADMINISTRATOR, UserRole.OPERATOR})),
+    ):
+        """Register a new EVM chain and protocol fork for automatic monitoring."""
+        chain_data = payload.model_dump()
+        rec = await repository.upsert_registered_chain(chain_data)
+        await repository.log_audit(
+            audit_id=f"audit_{uuid.uuid4().hex[:12]}",
+            user_email=user.user_email,
+            user_sub=user.user_sub,
+            role=user.role,
+            action="REGISTER_CHAIN",
+            details=chain_data,
+        )
+        return {
+            "status": "ok",
+            "chain_id": rec.chain_id,
+            "chain_name": rec.chain_name,
+            "protocol_name": rec.protocol_name,
+        }
+
+    @router.delete("/api/v1/chains/{chain_id}")
+    async def delete_registered_chain(
+        chain_id: str,
+        user: AuthenticatedUser = Depends(security.require_role({UserRole.ADMINISTRATOR, UserRole.OPERATOR})),
+    ):
+        """Remove a registered chain from monitoring."""
+        success = await repository.delete_registered_chain(chain_id)
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Chain '{chain_id}' not found")
+        await repository.log_audit(
+            audit_id=f"audit_{uuid.uuid4().hex[:12]}",
+            user_email=user.user_email,
+            user_sub=user.user_sub,
+            role=user.role,
+            action="DELETE_CHAIN",
+            details={"chain_id": chain_id},
+        )
+        return {"status": "ok", "deleted": chain_id}
+
+    @router.post("/api/v1/chains/{chain_id}/toggle")
+    async def toggle_chain(
+        chain_id: str,
+        payload: ToggleChainPayload,
+        user: AuthenticatedUser = Depends(security.require_role({UserRole.ADMINISTRATOR, UserRole.OPERATOR})),
+    ):
+        """Toggle monitoring active/paused for a registered chain."""
+        rec = await repository.toggle_chain_active(chain_id, payload.is_active)
+        if not rec:
+            raise HTTPException(status_code=404, detail=f"Chain '{chain_id}' not found")
+        await repository.log_audit(
+            audit_id=f"audit_{uuid.uuid4().hex[:12]}",
+            user_email=user.user_email,
+            user_sub=user.user_sub,
+            role=user.role,
+            action="TOGGLE_CHAIN",
+            details={"chain_id": chain_id, "is_active": payload.is_active},
+        )
+        return {"status": "ok", "chain_id": rec.chain_id, "is_active": rec.is_active}
+
+    @router.post("/api/v1/cleanup")
+    async def cleanup_red_ocean_data(
+        user: AuthenticatedUser = Depends(security.require_role({UserRole.ADMINISTRATOR, UserRole.OPERATOR})),
+    ):
+        """Purges legacy red-ocean positions, opportunities, and attempts."""
+        stats = await repository.purge_red_ocean_data()
+        if inverted_index:
+            red_ocean = {"moonwell_base", "kamino_solana", "scallop_sui", "seamless_base"}
+            inverted_index.remove_protocols(red_ocean)
+        await repository.log_audit(
+            audit_id=f"audit_{uuid.uuid4().hex[:12]}",
+            user_email=user.user_email,
+            user_sub=user.user_sub,
+            role=user.role,
+            action="PURGE_RED_OCEAN",
+            details=stats,
+        )
+        return {"status": "ok", "purged": stats}
 
     # --- Server-Sent Events (SSE) Live Feed ---
     @router.get("/api/v1/stream")

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from liquidator.core.models import BorrowerPosition, ChainType
 
@@ -158,6 +158,17 @@ class InvertedIndexEngine:
     def get_hot_positions(self) -> List[BorrowerPosition]:
         """Returns all positions currently in the HOT monitoring tier."""
         return [p for p in self._positions_by_id.values() if p.tier == "HOT"]
+
+    def remove_protocols(self, protocols: Set[str]) -> int:
+        """Removes all indexed positions belonging to specified protocols."""
+        removed_ids = set()
+        for pid, pos in list(self._positions_by_id.items()):
+            if pos.protocol in protocols:
+                removed_ids.add(pid)
+                del self._positions_by_id[pid]
+        for key in list(self._collateral_index.keys()):
+            self._collateral_index[key] = [p for p in self._collateral_index[key] if p.id not in removed_ids]
+        return len(removed_ids)
 
     def get_summary(self) -> Dict[str, Any]:
         """Calculates aggregated metrics for dashboard summary widgets."""

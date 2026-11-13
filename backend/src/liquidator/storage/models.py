@@ -181,3 +181,21 @@ class AuditLogRecord(Base):
         Index("idx_audit_timestamp", "timestamp"),
         Index("idx_audit_action", "action"),
     )
+
+
+class ChainRegistryRecord(Base):
+    """Dynamic registry of monitored EVM chains and newly launched protocol forks."""
+    __tablename__ = "chain_registry"
+
+    chain_id = Column(String(64), primary_key=True)  # e.g. 'sonic', 'linea', 'mantle'
+    chain_name = Column(String(128), nullable=False)
+    chain_type = Column(String(32), default="EVM")
+    rpc_url = Column(String(256), nullable=False)
+    protocol_type = Column(String(32), nullable=False)  # 'compound_v2' or 'aave_v3'
+    protocol_name = Column(String(128), nullable=False)
+    comptroller_or_pool_address = Column(String(128), nullable=False)
+    dex_router_address = Column(String(128), nullable=True)
+    funding_mode = Column(String(32), default="SELF_FUNDED")  # 'SELF_FUNDED' or 'FLASH_LOAN'
+    is_active = Column(Boolean, default=True)
+    created_at = Column(Float, default=time.time)
+    last_block = Column(BigInteger, default=0)

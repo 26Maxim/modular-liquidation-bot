@@ -18,12 +18,13 @@ from liquidator.storage.models import (
     AttemptRecord,
     AuditLogRecord,
     BorrowerPositionRecord,
+    ChainRegistryRecord,
     OpportunityRecord,
     RejectionLogRecord,
     SimulationCooldownRecord,
     UserSessionRecord,
 )
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 
 class Repository:
@@ -353,3 +354,103 @@ class Repository:
                 select(AuditLogRecord).order_by(AuditLogRecord.timestamp.desc()).limit(limit)
             )
             return list(res.scalars().all())
+
+    # --- Dynamic Chain & Protocol Registry ---
+    async def get_registered_chains(self, active_only: bool = False) -> List[ChainRegistryRecord]:
+        async with self.session_factory() as session:
+            stmt = select(ChainRegistryRecord)
+            if active_only:
+                stmt = stmt.where(ChainRegistryRecord.is_active.is_(True))
+            stmt = stmt.order_by(ChainRegistryRecord.created_at.asc())
+            res = await session.execute(stmt)
+            return list(res.scalars().all())
+
+    async def upsert_registered_chain(self, chain_data: Dict[str, Any]) -> ChainRegistryRecord:
+        chain_id = chain_data["chain_id"].strip().lower()
+        async with self.session_factory() as session:
+            record = await session.get(ChainRegistryRecord, chain_id)
+            if not record:
+                record = ChainRegistryRecord(
+                    chain_id=chain_id,
+                    chain_name=chain_data.get("chain_name", chain_id.capitalize()),
+                    chain_type=chain_data.get("chain_type", "EVM"),
+                    rpc_url=chain_data["rpc_url"],
+                    protocol_type=chain_data.get("protocol_type", "compound_v2"),
+                    protocol_name=chain_data.get("protocol_name", "Lending Protocol"),
+                    comptroller_or_pool_address=chain_data["comptroller_or_pool_address"],
+                    dex_router_address=chain_data.get("dex_router_address"),
+                    funding_mode=chain_data.get("funding_mode", "SELF_FUNDED"),
+                    is_active=chain_data.get("is_active", True),
+                    created_at=time.time(),
+                    last_block=0,
+                )
+                session.add(record)
+            else:
+                record.chain_name = chain_data.get("chain_name", record.chain_name)
+                record.rpc_url = chain_data.get("rpc_url", record.rpc_url)
+                record.protocol_type = chain_data.get("protocol_type", record.protocol_type)
+                record.protocol_name = chain_data.get("protocol_name", record.protocol_name)
+                record.comptroller_or_pool_address = chain_data.get("comptroller_or_pool_address", record.comptroller_or_pool_address)
+                record.dex_router_address = chain_data.get("dex_router_address", record.dex_router_address)
+                record.funding_mode = chain_data.get("funding_mode", record.funding_mode)
+                if "is_active" in chain_data:
+                    record.is_active = chain_data["is_active"]
+            await session.commit()
+            return record
+
+    async def delete_registered_chain(self, chain_id: str) -> bool:
+        async with self.session_factory() as session:
+            record = await session.get(ChainRegistryRecord, chain_id.strip().lower())
+            if record:
+                await session.delete(record)
+                await session.commit()
+                return True
+            return False
+
+    async def toggle_chain_active(self, chain_id: str, is_active: bool) -> Optional[ChainRegistryRecord]:
+        async with self.session_factory() as session:
+            record = await session.get(ChainRegistryRecord, chain_id.strip().lower())
+            if record:
+                record.is_active = is_active
+                await session.commit()
+                return record
+            return None
+
+    async def purge_red_ocean_data(self) -> Dict[str, int]:
+        """Cleans up all positions, opportunities, and attempts from red-ocean chains."""
+        async with self.session_factory() as session:
+            # Delete positions
+            r1 = await session.execute(
+                delete(BorrowerPositionRecord).where(
+                    BorrowerPositionRecord.protocol.in_(["moonwell_base", "kamino_solana", "scallop_sui", "seamless_base"])
+                )
+            )
+            # Delete attempts
+            r2 = await session.execute(
+                delete(AttemptRecord).where(
+                    AttemptRecord.protocol.in_(["moonwell_base", "kamino_solana", "scallop_sui", "seamless_base"])
+                )
+            )
+            # Delete opportunities
+            r3 = await session.execute(
+                delete(OpportunityRecord).where(
+                    OpportunityRecord.protocol.in_(["moonwell_base", "kamino_solana", "scallop_sui", "seamless_base"])
+                )
+            )
+            # Delete cooldowns & rejections
+            await session.execute(
+                delete(RejectionLogRecord).where(
+                    RejectionLogRecord.protocol.in_(["moonwell_base", "kamino_solana", "scallop_sui", "seamless_base"])
+                )
+            )
+            await session.execute(
+                delete(SimulationCooldownRecord).where(
+                    SimulationCooldownRecord.protocol.in_(["moonwell_base", "kamino_solana", "scallop_sui", "seamless_base"])
+                )
+            )
+            await session.commit()
+            return {
+                "deleted_positions": r1.rowcount or 0,
+                "deleted_attempts": r2.rowcount or 0,
+                "deleted_opportunities": r3.rowcount or 0,
+            }

@@ -19,6 +19,7 @@ from liquidator.chains.solana_adapter import SolanaChainAdapter
 from liquidator.chains.sui_adapter import SuiChainAdapter
 from liquidator.core.config import AppSettings
 from liquidator.core.models import BorrowerPosition, ChainType, RiskParameters
+from liquidator.discovery.dynamic_scanner import DynamicMultiChainScanner
 from liquidator.discovery.inverted_index import InvertedIndexEngine
 from liquidator.discovery.kamino_daemon import KaminoDiscoveryDaemon
 from liquidator.discovery.oracle_watcher import OracleUpdateWatcher
@@ -27,15 +28,18 @@ from liquidator.discovery.scanner import PositionDiscoveryScanner
 from liquidator.eligibility.evaluator import OpportunityEvaluator
 from liquidator.execution.executor import LiquidationExecutor
 from liquidator.funding.balancer_flash_loan import BalancerFlashLoanAdapter
+from liquidator.funding.self_funded import SelfFundedAdapter
 from liquidator.monitoring.metrics import EventHub
 from liquidator.pricing.uniswap_v3_quoter import UniswapV3RouteAdapter
 from liquidator.protocols.aries_adapter import AriesAdapter
+from liquidator.protocols.generic_lending_adapter import GenericLendingAdapter
 from liquidator.protocols.kamino_adapter import KaminoAdapter
 from liquidator.protocols.moonwell_adapter import MoonwellAdapter
 from liquidator.protocols.scallop_adapter import ScallopAdapter
 from liquidator.protocols.seamless_adapter import SeamlessAdapter
 from liquidator.risk.policy_engine import PolicyEngine
 from liquidator.storage.database import Database
+from liquidator.storage.models import ChainRegistryRecord
 from liquidator.storage.repository import Repository
 from liquidator.web.api import create_api_router
 
@@ -125,12 +129,28 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
     # 11. Inverted Index Engine (Zero-Latency Liquidation Thresholds & Hot/Cold Tiering)
     inverted_index = InvertedIndexEngine()
 
-    # 12. Background Real-Time Block & Event Streaming Scanner
+    # 12. Self-Funded Execution Adapter (0 bps fee, low competition on new chains)
+    self_funded_adapter = SelfFundedAdapter()
+
+    # 13. Dynamic Multi-Chain Discovery Scanner (Discovers markets on new EVM chains)
+    dynamic_scanner = DynamicMultiChainScanner(
+        repository=repository,
+        inverted_index=inverted_index,
+        evaluator=evaluator,
+        executor=executor,
+        funding_adapter=self_funded_adapter,
+        route_adapter=route_adapter,
+        chain_adapter=evm_adapter,
+        event_sink=event_hub,
+        poll_interval=5.0,
+    )
+
+    # Legacy daemons kept in app.state for backward compatibility
     scanner = PositionDiscoveryScanner(
         repository=repository,
         rpc_url=settings.BASE_RPC_URL,
         comptroller_address=settings.MOONWELL_COMPTROLLER_ADDRESS,
-        poll_interval=2.0,  # Stream at 2s block intervals on Base
+        poll_interval=10.0,
         event_sink=event_hub,
         evaluator=evaluator,
         executor=executor,
@@ -141,19 +161,17 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
         flash_liquidator_address=settings.FLASH_LIQUIDATOR_ADDRESS,
         inverted_index=inverted_index,
     )
-
-    # 13. Solana & Sui Live Discovery Daemons
     kamino_daemon = KaminoDiscoveryDaemon(
         repository=repository,
         rpc_url=settings.SOLANA_RPC_URL,
-        poll_interval=15.0,
+        poll_interval=60.0,
         event_sink=event_hub,
         inverted_index=inverted_index,
     )
     scallop_daemon = ScallopDiscoveryDaemon(
         repository=repository,
         graphql_endpoint=settings.SUI_GRAPHQL_URL,
-        poll_interval=20.0,
+        poll_interval=60.0,
         event_sink=event_hub,
         inverted_index=inverted_index,
     )
@@ -162,8 +180,8 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
     async def on_oracle_update(update):
         breached = inverted_index.update_price(update.asset_address, update.price_usd)
         for pos in breached:
-            if scanner and pos.chain == ChainType.EVM:
-                asyncio.create_task(scanner._evaluate_shortfall_position(pos, pos.block_number))
+            if dynamic_scanner and pos.chain == ChainType.EVM:
+                asyncio.create_task(dynamic_scanner.evaluate_eligible_positions(force=True))
 
     oracle_watcher.on_price_update = on_oracle_update
 
@@ -171,6 +189,54 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI):
         # Startup: initialize database tables
         await db.init_models()
+
+        # Purge legacy red-ocean data from repository and inverted index
+        await repository.purge_red_ocean_data()
+        inverted_index.remove_protocols({"moonwell_base", "kamino_solana", "scallop_sui", "seamless_base"})
+
+        # Seed initial Blue Ocean chains if registry is empty
+        existing_chains = await repository.get_registered_chains()
+        if not existing_chains:
+            default_chains = [
+                {
+                    "chain_id": "sonic",
+                    "chain_name": "Sonic Mainnet",
+                    "chain_type": "EVM",
+                    "rpc_url": "https://rpc.soniclabs.com",
+                    "protocol_type": "compound_v2",
+                    "protocol_name": "Rings Lending",
+                    "comptroller_or_pool_address": "0x5C808E56B486c478a89F2A6F14Fd5c2196627C44",
+                    "dex_router_address": "0x3b664d4b295f70a169b2075592182c1630b42c65",
+                    "funding_mode": "SELF_FUNDED",
+                    "is_active": True,
+                },
+                {
+                    "chain_id": "linea",
+                    "chain_name": "Linea zkEVM",
+                    "chain_type": "EVM",
+                    "rpc_url": "https://rpc.linea.build",
+                    "protocol_type": "compound_v2",
+                    "protocol_name": "ZeroLend",
+                    "comptroller_or_pool_address": "0x28cD8F4F507FfaA07513Cea9372F96E698888888",
+                    "dex_router_address": "0x323e20e8b5a0364e037c87c71d6046e7f8272995",
+                    "funding_mode": "SELF_FUNDED",
+                    "is_active": True,
+                },
+                {
+                    "chain_id": "mantle",
+                    "chain_name": "Mantle Network",
+                    "chain_type": "EVM",
+                    "rpc_url": "https://rpc.mantle.xyz",
+                    "protocol_type": "compound_v2",
+                    "protocol_name": "Ionic Money",
+                    "comptroller_or_pool_address": "0x3d30F326D13A0d309A71158c381c81F19bC16259",
+                    "dex_router_address": "0x13374200c29C757FDCc72F15Da98fb94f286d71e",
+                    "funding_mode": "SELF_FUNDED",
+                    "is_active": True,
+                },
+            ]
+            for c_data in default_chains:
+                await repository.upsert_registered_chain(c_data)
 
         # Seed Inverted Index with persisted positions
         stored_positions = await repository.get_all_positions()
@@ -200,20 +266,14 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
             except Exception:
                 pass
 
-        scanner_task = asyncio.create_task(scanner.start())
-        oracle_task = asyncio.create_task(oracle_watcher.start_polling_loop(poll_interval=10.0))
-        kamino_task = asyncio.create_task(kamino_daemon.start())
-        scallop_task = asyncio.create_task(scallop_daemon.start())
+        dynamic_task = asyncio.create_task(dynamic_scanner.start())
+        oracle_task = asyncio.create_task(oracle_watcher.start_polling_loop(poll_interval=15.0))
         yield
         # Shutdown: close DB & cancel background task
-        scanner.stop()
-        scanner_task.cancel()
+        dynamic_scanner.stop()
+        dynamic_task.cancel()
         oracle_watcher.stop()
         oracle_task.cancel()
-        kamino_daemon.stop()
-        kamino_task.cancel()
-        scallop_daemon.stop()
-        scallop_task.cancel()
         await db.close()
 
     app = FastAPI(
@@ -237,7 +297,7 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
         oracle_watcher=oracle_watcher,
         chain_adapters=chain_adapters,
         protocol_adapters=protocol_adapters,
-        scanner=scanner,
+        scanner=dynamic_scanner,
         inverted_index=inverted_index,
     )
     app.include_router(api_router)
@@ -289,5 +349,7 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
     app.state.kamino_daemon = kamino_daemon
     app.state.scallop_daemon = scallop_daemon
     app.state.inverted_index = inverted_index
+    app.state.dynamic_scanner = dynamic_scanner
+    app.state.self_funded_adapter = self_funded_adapter
 
     return app
